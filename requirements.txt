@@ -1,0 +1,14 @@
+# Core dependencies
+Pillow>=9.0.0            # Image format conversions
+python-docx>=0.8.11      # Word document handling
+openpyxl>=3.0.9          # Excel spreadsheet handling
+PyPDF2>=2.0.0            # PDF handling
+PyYAML>=6.0              # YAML handling
+lxml>=4.6.3              # XML handling
+Markdown>=3.3.6          # Markdown conversions
+chardet>=4.0.0           # Character encoding detection
+
+# Optional dependencies
+html2text>=2020.1.16     # HTML to Markdown conversion
+toml>=0.10.2             # TOML format support
+reportlab>=3.6.1         # PDF generation
