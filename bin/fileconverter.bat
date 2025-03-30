@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""
+FileConverter command-line executable.
+
+This script provides a convenient entry point for the FileConverter
+command-line interface.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+# Add the parent directory to sys.path to allow importing fileconverter
+parent_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(parent_dir))
+
+# Import and run the CLI
+from fileconverter.cli import main
+
+if __name__ == "__main__":
+    main()
