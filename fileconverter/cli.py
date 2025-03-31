@@ -266,15 +266,31 @@ def list_formats(ctx: click.Context, category: Optional[str]) -> None:
     click.echo("\nUse 'fileconverter convert --help' for conversion options.")
 
 
-def main() -> None:
-    """Main entry point for the CLI."""
+def main(argv: Optional[List[str]] = None) -> int:
+    """Main entry point for the CLI.
+    
+    Args:
+        argv: Command line arguments. If None, sys.argv[1:] is used.
+        
+    Returns:
+        Exit code, 0 for success or non-zero for error.
+    """
     try:
-        cli(obj={})
+        if argv is None:
+            argv = sys.argv[1:]
+        cli.main(args=argv, standalone_mode=False)
+        return 0
+    except click.Abort:
+        logger.debug("Command aborted by user")
+        return 130  # Standard exit code for Ctrl+C
+    except click.ClickException as e:
+        e.show()
+        return e.exit_code
     except Exception as e:
         logger.exception("Unexpected error in CLI")
         click.echo(f"Error: {str(e)}", err=True)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

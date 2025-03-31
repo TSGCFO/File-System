@@ -6,6 +6,7 @@ This module provides various helper functions used by the core components.
 
 import mimetypes
 import os
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
@@ -243,3 +244,56 @@ def get_extensions_for_format(format_name: str) -> List[str]:
     
     # Default case: format name is the extension
     return [format_lower]
+
+
+def get_temp_dir(base_dir: Optional[Union[str, Path]] = None) -> Path:
+    """Create a temporary directory for processing files.
+    
+    Args:
+        base_dir: Optional base directory in which to create the temp directory.
+                 If None, system default temp directory is used.
+    
+    Returns:
+        Path to the created temporary directory.
+    """
+    if base_dir:
+        base_dir_path = Path(base_dir)
+        if not base_dir_path.exists():
+            base_dir_path.mkdir(parents=True, exist_ok=True)
+        temp_dir = Path(tempfile.mkdtemp(prefix="fileconverter_", dir=str(base_dir_path)))
+    else:
+        temp_dir = Path(tempfile.mkdtemp(prefix="fileconverter_"))
+    
+    logger.debug(f"Created temporary directory: {temp_dir}")
+    return temp_dir
+
+
+def create_temp_file(
+    suffix: Optional[str] = None,
+    prefix: Optional[str] = None,
+    dir: Optional[Union[str, Path]] = None,
+    text: bool = False
+) -> Path:
+    """Create a temporary file for processing.
+    
+    Args:
+        suffix: Optional file suffix (e.g., '.txt').
+        prefix: Optional prefix for the file name.
+        dir: Optional directory in which to create the file.
+        text: Whether to open the file in text mode.
+    
+    Returns:
+        Path to the created temporary file.
+    """
+    prefix = prefix or "fileconverter_"
+    
+    if dir:
+        dir_path = Path(dir)
+        if not dir_path.exists():
+            dir_path.mkdir(parents=True, exist_ok=True)
+    
+    fd, path = tempfile.mkstemp(suffix=suffix, prefix=prefix, dir=dir, text=text)
+    os.close(fd)  # Close the file descriptor
+    
+    logger.debug(f"Created temporary file: {path}")
+    return Path(path)
