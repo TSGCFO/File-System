@@ -1,0 +1,222 @@
+/* 
+   Default stylesheet for FileConverter GUI 
+*/
+
+/* Global styles */
+QWidget {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10pt;
+}
+
+/* Main window */
+QMainWindow {
+    background-color: #f0f0f0;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #2980b9;
+    color: white;
+    border: 1px solid #2980b9;
+    border-radius: 4px;
+    padding: 6px 12px;
+    min-width: 80px;
+}
+
+QPushButton:hover {
+    background-color: #3498db;
+    border: 1px solid #3498db;
+}
+
+QPushButton:pressed {
+    background-color: #1c638e;
+    border: 1px solid #1c638e;
+}
+
+QPushButton:disabled {
+    background-color: #cccccc;
+    border: 1px solid #bbbbbb;
+    color: #888888;
+}
+
+/* Text inputs */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px;
+    background-color: white;
+}
+
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border: 1px solid #3498db;
+}
+
+/* Combo boxes */
+QComboBox {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px;
+    background-color: white;
+    min-width: 100px;
+}
+
+QComboBox:focus {
+    border: 1px solid #3498db;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left: 1px solid #cccccc;
+}
+
+/* Progress bar */
+QProgressBar {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    text-align: center;
+    background-color: white;
+}
+
+QProgressBar::chunk {
+    background-color: #2980b9;
+    width: 10px;
+}
+
+/* Tabs */
+QTabWidget::pane {
+    border: 1px solid #cccccc;
+    background-color: white;
+}
+
+QTabBar::tab {
+    background-color: #e0e0e0;
+    border: 1px solid #cccccc;
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 6px 10px;
+}
+
+QTabBar::tab:selected {
+    background-color: white;
+    border-bottom: 1px solid white;
+}
+
+QTabBar::tab:!selected {
+    margin-top: 2px;
+}
+
+/* List widgets */
+QListWidget {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    background-color: white;
+}
+
+QListWidget::item {
+    padding: 4px;
+}
+
+QListWidget::item:selected {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Group boxes */
+QGroupBox {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    margin-top: 10px;
+    padding-top: 14px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 8px;
+    padding: 0 4px;
+    background-color: #f0f0f0;
+}
+
+/* Splitter */
+QSplitter::handle {
+    background-color: #cccccc;
+}
+
+QSplitter::handle:horizontal {
+    width: 4px;
+}
+
+QSplitter::handle:vertical {
+    height: 4px;
+}
+
+/* Status bar */
+QStatusBar {
+    background-color: #e0e0e0;
+    border-top: 1px solid #cccccc;
+}
+
+/* Menu bar */
+QMenuBar {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #cccccc;
+}
+
+QMenuBar::item {
+    padding: 4px 8px;
+}
+
+QMenuBar::item:selected {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Menus */
+QMenu {
+    background-color: white;
+    border: 1px solid #cccccc;
+}
+
+QMenu::item {
+    padding: 4px 20px 4px 20px;
+}
+
+QMenu::item:selected {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Checkboxes */
+QCheckBox {
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QCheckBox::indicator:unchecked {
+    border: 1px solid #cccccc;
+    background-color: white;
+}
+
+QCheckBox::indicator:checked {
+    border: 1px solid #2980b9;
+    background-color: #2980b9;
+}
+
+/* Spinboxes */
+QSpinBox, QDoubleSpinBox {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px;
+    background-color: white;
+}
+
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid #3498db;
+}
