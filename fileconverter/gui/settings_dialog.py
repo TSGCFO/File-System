@@ -54,8 +54,16 @@ class SettingsDialog(QDialog):
         
         # Set dialog properties
         self.setWindowTitle("Settings")
-        self.setMinimumWidth(500)
-        self.resize(600, 400)
+        self.setMinimumWidth(600)
+        self.resize(700, 500)
+        
+        # Check if config file exists, create default if not
+        if not self.config._loaded_path:
+            try:
+                from fileconverter.config import create_default_config_file
+                self.config_path = str(create_default_config_file())
+            except Exception as e:
+                logger.error(f"Failed to create default config file: {str(e)}")
         
         # Setup UI
         self.setup_ui()
@@ -75,11 +83,14 @@ class SettingsDialog(QDialog):
         # General tab
         self.setup_general_tab()
         
-        # Conversion tab
-        self.setup_conversion_tab()
+        # Converters tabs
+        self.setup_converters_tabs()
         
         # Advanced tab
         self.setup_advanced_tab()
+        
+        # Create direct access to config values
+        self.config_widgets = {}
         
         # Buttons
         button_box = QDialogButtonBox(
@@ -132,8 +143,25 @@ class SettingsDialog(QDialog):
         
         self.tab_widget.addTab(tab, "General")
     
-    def setup_conversion_tab(self):
-        """Set up the conversion settings tab."""
+    def setup_converters_tabs(self):
+        """Set up tabs for each converter category."""
+        # General conversion settings tab
+        self._setup_general_conversion_tab()
+        
+        # Create a tab for each converter category
+        converter_categories = [
+            ("document", "Document"),
+            ("spreadsheet", "Spreadsheet"),
+            ("image", "Image"),
+            ("data_exchange", "Data Exchange"),
+            ("archive", "Archive"),
+        ]
+        
+        for category_key, category_name in converter_categories:
+            self._setup_converter_tab(category_key, category_name)
+    
+    def _setup_general_conversion_tab(self):
+        """Set up the general conversion settings tab."""
         tab = QWidget()
         layout = QFormLayout(tab)
         
@@ -144,12 +172,14 @@ class SettingsDialog(QDialog):
         self.max_file_size.setValue(100)
         self.max_file_size.setSuffix(" MB")
         layout.addRow("Maximum File Size:", self.max_file_size)
+        self.config_widgets[("general", "max_file_size_mb")] = self.max_file_size
         
         # Temporary directory
         temp_layout = QHBoxLayout()
         
         self.temp_dir_edit = QLineEdit()
         temp_layout.addWidget(self.temp_dir_edit)
+        self.config_widgets[("general", "temp_dir")] = self.temp_dir_edit
         
         self.browse_temp_button = QPushButton("Browse...")
         self.browse_temp_button.clicked.connect(self.on_browse_temp)
@@ -160,8 +190,114 @@ class SettingsDialog(QDialog):
         # Preserve temp files
         self.preserve_temp = QCheckBox("Preserve temporary files")
         layout.addWidget(self.preserve_temp)
+        self.config_widgets[("general", "preserve_temp_files")] = self.preserve_temp
         
-        self.tab_widget.addTab(tab, "Conversion")
+        self.tab_widget.addTab(tab, "General Conversion")
+    
+    def _setup_converter_tab(self, category_key, category_name):
+        """Set up a tab for a specific converter category.
+        
+        Args:
+            category_key: Configuration key for the converter category.
+            category_name: Display name for the converter category.
+        """
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        
+        # Enable checkbox
+        enable_layout = QHBoxLayout()
+        enable_checkbox = QCheckBox(f"Enable {category_name} Converter")
+        enable_checkbox.setChecked(
+            self.config.get("converters", category_key, "enabled", default=True)
+        )
+        enable_layout.addWidget(enable_checkbox)
+        self.config_widgets[("converters", category_key, "enabled")] = enable_checkbox
+        
+        # Add stretch to push the checkbox to the left
+        enable_layout.addStretch(1)
+        
+        layout.addLayout(enable_layout)
+        
+        # Create scrollable area for converter settings
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_content = QWidget()
+        scroll_layout = QFormLayout(scroll_content)
+        
+        # Get converter-specific settings from config
+        converter_config = self.config.get("converters", category_key, default={})
+        
+        # Create widgets for each format's settings
+        for format_key, format_settings in converter_config.items():
+            # Skip the 'enabled' flag, we handled it separately
+            if format_key == "enabled":
+                continue
+                
+            # Create a group box for this format
+            format_group = QGroupBox(format_key.upper())
+            format_layout = QFormLayout(format_group)
+            
+            # Add settings for this format
+            if isinstance(format_settings, dict):
+                for setting_key, setting_value in format_settings.items():
+                    # Create appropriate widget based on value type
+                    if isinstance(setting_value, bool):
+                        widget = QCheckBox()
+                        widget.setChecked(setting_value)
+                    elif isinstance(setting_value, int):
+                        widget = QSpinBox()
+                        widget.setMinimum(0)
+                        widget.setMaximum(10000)
+                        widget.setValue(setting_value)
+                    elif isinstance(setting_value, float):
+                        widget = QDoubleSpinBox()
+                        widget.setMinimum(0)
+                        widget.setMaximum(10000)
+                        widget.setValue(setting_value)
+                    elif setting_value is None:
+                        widget = QLineEdit()
+                        widget.setPlaceholderText("None (default)")
+                    else:
+                        widget = QLineEdit()
+                        widget.setText(str(setting_value))
+                    
+                    # Special handling for delimiters
+                    if setting_key == "delimiter":
+                        widget = QComboBox()
+                        delimiters = [
+                            (",", "Comma (,)"),
+                            (";", "Semicolon (;)"),
+                            ("\t", "Tab (\\t)"),
+                            ("|", "Pipe (|)"),
+                            (" ", "Space ( )"),
+                        ]
+                        for value, display in delimiters:
+                            widget.addItem(display, value)
+                        
+                        # Set current value
+                        for i, (value, _) in enumerate(delimiters):
+                            if value == setting_value:
+                                widget.setCurrentIndex(i)
+                                break
+                    
+                    # Store widget for later access
+                    config_key = ("converters", category_key, format_key, setting_key)
+                    self.config_widgets[config_key] = widget
+                    
+                    # Make setting key more user-friendly
+                    display_key = " ".join(s.capitalize() for s in setting_key.split("_"))
+                    format_layout.addRow(f"{display_key}:", widget)
+            
+            scroll_layout.addRow(format_group)
+        
+        # If no settings were added, show a message
+        if len(scroll_layout) == 0:
+            scroll_layout.addRow(QLabel("No configurable settings for this converter."))
+        
+        scroll_area.setWidget(scroll_content)
+        layout.addWidget(scroll_area)
+        
+        self.tab_widget.addTab(tab, category_name)
     
     def setup_advanced_tab(self):
         """Set up the advanced settings tab."""
@@ -263,26 +399,13 @@ class SettingsDialog(QDialog):
         if log_file:
             self.log_file_edit.setText(log_file)
         
-        # Load converter enabled settings
-        self.document_converter.setChecked(
-            self.config.get("converters", "document", "enabled", default=True)
-        )
-        
-        self.spreadsheet_converter.setChecked(
-            self.config.get("converters", "spreadsheet", "enabled", default=True)
-        )
-        
-        self.image_converter.setChecked(
-            self.config.get("converters", "image", "enabled", default=True)
-        )
-        
-        self.data_exchange_converter.setChecked(
-            self.config.get("converters", "data_exchange", "enabled", default=True)
-        )
-        
-        self.archive_converter.setChecked(
-            self.config.get("converters", "archive", "enabled", default=True)
-        )
+        # Load converter enabled settings (in case they weren't already set)
+        for category in ["document", "spreadsheet", "image", "data_exchange", "archive"]:
+            config_key = ("converters", category, "enabled")
+            if config_key in self.config_widgets:
+                self.config_widgets[config_key].setChecked(
+                    self.config.get("converters", category, "enabled", default=True)
+                )
     
     def save_settings(self):
         """Save settings to the configuration."""
@@ -307,56 +430,42 @@ class SettingsDialog(QDialog):
             # Create new config instance
             config = Config(self.config_path)
             
-            # Set conversion settings
-            config.set(
-                self.max_file_size.value(),
-                "general", "max_file_size_mb"
+            # Save general settings
+            self.settings.setValue(
+                "general/recentFilesLimit",
+                self.recent_files_limit.value()
             )
             
-            temp_dir = self.temp_dir_edit.text()
-            if temp_dir:
-                config.set(temp_dir, "general", "temp_dir")
-            
-            config.set(
-                self.preserve_temp.isChecked(),
-                "general", "preserve_temp_files"
+            self.settings.setValue(
+                "gui/theme",
+                self.theme_combo.currentText()
             )
             
-            # Set advanced settings
-            config.set(
-                self.log_level_combo.currentText(),
-                "logging", "level"
+            self.settings.setValue(
+                "gui/showTooltips",
+                self.show_tooltips.isChecked()
             )
             
-            log_file = self.log_file_edit.text()
-            if log_file:
-                config.set(log_file, "logging", "file")
-            
-            # Set converter enabled settings
-            config.set(
-                self.document_converter.isChecked(),
-                "converters", "document", "enabled"
-            )
-            
-            config.set(
-                self.spreadsheet_converter.isChecked(),
-                "converters", "spreadsheet", "enabled"
-            )
-            
-            config.set(
-                self.image_converter.isChecked(),
-                "converters", "image", "enabled"
-            )
-            
-            config.set(
-                self.data_exchange_converter.isChecked(),
-                "converters", "data_exchange", "enabled"
-            )
-            
-            config.set(
-                self.archive_converter.isChecked(),
-                "converters", "archive", "enabled"
-            )
+            # Save all configured settings
+            for config_key, widget in self.config_widgets.items():
+                # Extract value based on widget type
+                if isinstance(widget, QLineEdit):
+                    value = widget.text() if widget.text() else None
+                elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                    value = widget.value()
+                elif isinstance(widget, QCheckBox):
+                    value = widget.isChecked()
+                elif isinstance(widget, QComboBox):
+                    # Special handling for delimiters
+                    if config_key[-1] == "delimiter":
+                        value = widget.currentData()
+                    else:
+                        value = widget.currentText()
+                else:
+                    continue
+                
+                # Set the value in the config
+                config.set(value, *config_key)
             
             # Save configuration
             try:

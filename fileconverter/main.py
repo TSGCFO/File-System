@@ -17,6 +17,27 @@ from fileconverter.utils.logging_utils import get_logger
 logger = get_logger(__name__)
 
 
+def initialize_config() -> None:
+    """Initialize the configuration file if it doesn't exist.
+    
+    This ensures that first-time users have a properly configured
+    application with sensible defaults.
+    """
+    try:
+        from fileconverter.config import get_config, create_default_config_file
+        
+        # Check if config file exists
+        config = get_config()
+        if not config._loaded_path:
+            # Create default config file
+            logger.info("No configuration file found. Creating default configuration.")
+            config_path = create_default_config_file()
+            logger.info(f"Created default configuration at {config_path}")
+    except Exception as e:
+        logger.warning(f"Failed to initialize configuration: {str(e)}")
+        # Continue even if config initialization fails - we have defaults in code
+
+
 def launch_gui() -> int:
     """Launch the FileConverter GUI application.
     
@@ -63,6 +84,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     
     # Configure logging
     logging.basicConfig(level=logging.INFO)
+    
+    # Initialize configuration if needed
+    initialize_config()
     
     # If no arguments and not being run as a script directly,
     # or if --gui/-g flag is present, launch GUI

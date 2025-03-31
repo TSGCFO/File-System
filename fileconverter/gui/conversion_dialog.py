@@ -271,7 +271,33 @@ class ConversionDialog(QDialog):
                 param_default = param_def.get("default")
                 param_desc = param_def.get("description", "")
                 
-                if param_type == "string":
+                # Special handling for delimiter parameter in CSV/TSV conversions
+                if param_name == "delimiter" and current_format in ["csv", "tsv"]:
+                    widget = QComboBox()
+                    delimiters = [
+                        (",", "Comma (,)"),
+                        (";", "Semicolon (;)"),
+                        ("\t", "Tab (\\t)"),
+                        ("|", "Pipe (|)"),
+                        (" ", "Space ( )"),
+                    ]
+                    for value, display in delimiters:
+                        widget.addItem(display, value)
+                    
+                    # Set default value
+                    default_index = 0  # Default to comma
+                    if param_default == "\t":
+                        default_index = 2  # Tab
+                    elif param_default == ";":
+                        default_index = 1  # Semicolon
+                    elif param_default == "|":
+                        default_index = 3  # Pipe
+                    elif param_default == " ":
+                        default_index = 4  # Space
+                        
+                    widget.setCurrentIndex(default_index)
+                    
+                elif param_type == "string":
                     widget = QLineEdit()
                     if param_default is not None:
                         widget.setText(str(param_default))
@@ -339,18 +365,18 @@ class ConversionDialog(QDialog):
             group_name, param_name = parts
             
             # Get value based on widget type
-            if isinstance(widget, QLineEdit):
+            # Special handling for delimiter ComboBox
+            if param_key.endswith(".delimiter") and isinstance(widget, QComboBox):
+                # Get the actual delimiter value, not the display text
+                value = widget.currentData()
+            elif isinstance(widget, QLineEdit):
                 value = widget.text()
-            
             elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
                 value = widget.value()
-            
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()
-            
             elif isinstance(widget, QComboBox):
                 value = widget.currentText()
-            
             else:
                 continue
             

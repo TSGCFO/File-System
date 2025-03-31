@@ -1,0 +1,62 @@
+{
+  "repo": {
+    "provider": "gemini",
+    "model": "gemini-2.5-pro-exp-03-25",
+    "maxTokens": 1000000
+  },
+  "doc": {
+    "provider": "gemini",
+    "model": "gemini-2.5-pro-exp-03-25",
+    "maxTokens": 1000000
+  },
+  "web": {
+    "provider": "perplexity",
+    "model": "sonar-pro-2402",
+    "maxTokens": 32000
+  },
+  "plan": {
+    "fileProvider": "gemini",
+    "thinkingProvider": "openai",
+    "fileModel": "gemini-2.5-pro-exp-03-25",
+    "thinkingModel": "o3-mini",
+    "fileMaxTokens": 100000,
+    "thinkingMaxTokens": 10000
+  },
+  "browser": {
+    "headless": false,
+    "defaultViewport": "1920x1080",
+    "timeout": 120000
+  },
+  
+  "stagehand": {
+    "model": "claude-3-7-sonnet-latest",
+    "provider": "anthropic",
+    "timeout": 120000,
+    "verbose": 2,
+    "enableCaching": true
+  },
+  "openai": {
+    "model": "gpt-4o",
+    "maxTokens": 128000
+  },
+  "anthropic": {
+    "model": "claude-3-7-sonnet-latest",
+    "maxTokens": 200000
+  },
+  "perplexity": {
+    "model": "sonar-pro-2402",
+    "maxTokens": 32000
+  },
+  "gemini": {
+    "model": "gemini-2.5-pro-exp-03-25",
+    "maxTokens": 1000000
+  },
+  "openrouter": {
+    "model": "anthropic/claude-3-7-sonnet",
+    "maxTokens": 200000
+  },
+  
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
