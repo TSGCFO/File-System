@@ -80,6 +80,9 @@ class SettingsDialog(QDialog):
         self.tab_widget = QTabWidget()
         layout.addWidget(self.tab_widget)
         
+        # Create direct access to config values
+        self.config_widgets = {}
+        
         # General tab
         self.setup_general_tab()
         
@@ -88,9 +91,6 @@ class SettingsDialog(QDialog):
         
         # Advanced tab
         self.setup_advanced_tab()
-        
-        # Create direct access to config values
-        self.config_widgets = {}
         
         # Buttons
         button_box = QDialogButtonBox(

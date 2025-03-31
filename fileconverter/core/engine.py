@@ -65,7 +65,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from fileconverter.config import get_config
-from fileconverter.core.registry import ConverterRegistry
+from fileconverter.core.registry import ConverterRegistry, BaseConverter
 from fileconverter.utils.error_handling import ConversionError
 from fileconverter.utils.file_utils import get_file_format, get_file_size_mb
 from fileconverter.utils.logging_utils import get_logger
