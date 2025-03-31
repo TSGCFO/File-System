@@ -1,0 +1,67 @@
+.
+├── bin
+│   ├── fileconverter
+│   └── fileconverter.bat
+├── docs
+│   ├── examples
+│   ├── api.md
+│   ├── index.md
+│   └── usage.md
+├── examples
+│   ├── basic_conversion.py
+│   ├── batch_processing.py
+│   └── custom_pipeline.py
+├── fileconverter
+│   ├── converters
+│   │   ├── __init__.py
+│   │   ├── archive.py
+│   │   ├── data_exchange.py
+│   │   ├── database.py
+│   │   ├── document.py
+│   │   ├── font.py
+│   │   ├── image.py
+│   │   ├── pdf.py
+│   │   ├── spreadsheet.py
+│   │   └── text_markup.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── engine.py
+│   │   ├── registry.py
+│   │   └── utils.py
+│   ├── gui
+│   │   ├── resources
+│   │   │   ├── icons
+│   │   │   └── styles
+│   │   ├── __init__.py
+│   │   ├── conversion_dialog.py
+│   │   ├── main_window.py
+│   │   └── settings_dialog.py
+│   ├── utils
+│   │   ├── __init__.py
+│   │   ├── error_handling.py
+│   │   ├── file_utils.py
+│   │   ├── logging_utils.py
+│   │   └── validation.py
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── cli.py
+│   ├── config.py
+│   └── version.py
+├── tests
+│   ├── test_converters
+│   │   ├── __init__.py
+│   │   ├── test_document.py
+│   │   └── test_spreadsheet.py
+│   ├── test_data
+│   │   ├── documents
+│   │   └── spreadsheets
+│   ├── __init__.py
+│   ├── test_cli.py
+│   └── test_core.py
+├── LICENSE
+├── README.md
+├── directory_structure.txt
+├── requirements.txt
+└── setup.py
+
+17 directories, 47 files
