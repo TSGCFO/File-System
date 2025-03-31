@@ -307,17 +307,17 @@ class ConversionEngine:
         # Create temporary directory for conversion
         try:
             temp_dir = self._create_temp_dir()
-            
             # Perform direct or multi-step conversion
             if len(conversion_path) == 1:
                 # Single-step (direct) conversion
-                result = conversion_path[0].convert(
+                converter = conversion_path[0]
+                result = converter.convert(
                     input_path=input_path,
                     output_path=output_path,
                     temp_dir=temp_dir,
                     parameters=parameters
                 )
-            else:
+            elif len(conversion_path) > 1:
                 # Multi-step conversion
                 result = self._perform_multi_step_conversion(
                     conversion_path=conversion_path,
@@ -326,6 +326,9 @@ class ConversionEngine:
                     temp_dir=temp_dir,
                     parameters=parameters
                 )
+            else:
+                # Empty path (shouldn't happen due to earlier check)
+                raise ConversionError("Empty conversion path")
             
             # Clean up
             if not self.preserve_temp:

@@ -16,7 +16,7 @@ try:
         QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QTabWidget,
         QLabel, QLineEdit, QComboBox, QPushButton, QFileDialog,
         QWidget, QSpinBox, QCheckBox, QDialogButtonBox,
-        QMessageBox, QGroupBox
+        QMessageBox, QGroupBox, QScrollArea, QDoubleSpinBox
     )
     GUI_AVAILABLE = True
 except ImportError:
