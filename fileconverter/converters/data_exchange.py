@@ -29,7 +29,8 @@ from fileconverter.utils.validation import validate_file_path
 logger = get_logger(__name__)
 
 # Define supported formats
-SUPPORTED_FORMATS = ["json", "xml", "yaml", "yml", "ini", "toml", "csv", "tsv"]
+SUPPORTED_FORMATS = ["json", "xml", "yaml", "yml", "ini", "toml", "csv", "tsv",
+                   "docx", "pdf", "txt", "html", "htm", "md", "xlsx", "xls"]
 
 
 class DataExchangeConverter(BaseConverter):
@@ -38,12 +39,14 @@ class DataExchangeConverter(BaseConverter):
     @classmethod
     def get_input_formats(cls) -> List[str]:
         """Get the list of input formats supported by this converter."""
-        return ["json", "xml", "yaml", "ini", "toml", "csv", "tsv"]
+        return ["json", "xml", "yaml", "ini", "toml", "csv", "tsv",
+                "docx", "pdf", "txt", "html", "htm", "md", "xlsx"]
     
     @classmethod
     def get_output_formats(cls) -> List[str]:
         """Get the list of output formats supported by this converter."""
-        return ["json", "xml", "yaml", "ini", "toml", "csv", "tsv"]
+        return ["json", "xml", "yaml", "ini", "toml", "csv", "tsv",
+                "docx", "pdf", "txt", "html", "md", "xlsx"]
     
     @classmethod
     def get_format_extensions(cls, format_name: str) -> List[str]:
@@ -56,6 +59,13 @@ class DataExchangeConverter(BaseConverter):
             "toml": ["toml"],
             "csv": ["csv"],
             "tsv": ["tsv"],
+            "docx": ["docx"],
+            "pdf": ["pdf"],
+            "txt": ["txt"],
+            "html": ["html", "htm"],
+            "md": ["md", "markdown"],
+            "xlsx": ["xlsx"],
+            "xls": ["xls"],
         }
         return format_map.get(format_name.lower(), [])
     
@@ -112,6 +122,15 @@ class DataExchangeConverter(BaseConverter):
             self._save_data(data, output_path, output_format, parameters)
         except Exception as e:
             raise ConversionError(f"Failed to save {output_format} data: {str(e)}")
+            
+        # Handle conversions that require special processing
+        if (input_format in ["json", "xml", "yaml", "ini", "toml", "csv", "tsv"] and
+            output_format in ["docx", "pdf", "html", "md"]):
+            try:
+                # Convert to document format
+                self._convert_to_document_format(data, output_path, output_format, parameters)
+            except Exception as e:
+                raise ConversionError(f"Failed to convert to {output_format}: {str(e)}")
         
         return {
             "input_format": input_format,
@@ -736,6 +755,207 @@ class DataExchangeConverter(BaseConverter):
         parameters["delimiter"] = "\t"
         return self._save_csv(data, file_path, parameters)
     
+    def _convert_to_document_format(
+        self,
+        data: Any,
+        output_path: Path,
+        output_format: str,
+        parameters: Dict[str, Any]
+    ) -> None:
+        """Convert structured data to a document format.
+        
+        Args:
+            data: Data to convert.
+            output_path: Path where to save the file.
+            output_format: Output format.
+            parameters: Conversion parameters.
+            
+        Raises:
+            ConversionError: If the conversion fails.
+        """
+        try:
+            # Convert data to a pandas DataFrame for easier handling
+            import pandas as pd
+            
+            # Handle different data types
+            if isinstance(data, list):
+                df = pd.DataFrame(data)
+            elif isinstance(data, dict):
+                if any(isinstance(data[k], (dict, list)) for k in data):
+                    # Complex nested structure
+                    df = pd.json_normalize(data)
+                else:
+                    # Simple flat dictionary
+                    df = pd.DataFrame([data])
+            else:
+                # Try to convert to DataFrame
+                df = pd.DataFrame(data)
+            
+            # Now output to the target document format
+            if output_format == "html":
+                # Generate HTML table
+                html_table = df.to_html(
+                    index=parameters.get("index", False),
+                    table_id=parameters.get("table_id", "data"),
+                    classes=parameters.get("classes", "dataframe"),
+                    escape=parameters.get("escape", True)
+                )
+                
+                # Create full HTML document
+                title = parameters.get("title", "Data Exchange")
+                css_content = """
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .dataframe { margin-bottom: 20px; }
+                """
+                
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <title>{title}</title>
+                    <style>
+                        {css_content}
+                    </style>
+                </head>
+                <body>
+                    <h1>{title}</h1>
+                    {html_table}
+                </body>
+                </html>
+                """
+                
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                    
+            elif output_format == "pdf":
+                # Convert to PDF via HTML
+                import tempfile
+                
+                # First create HTML
+                html_path = tempfile.NamedTemporaryFile(suffix=".html", delete=False).name
+                
+                # Generate HTML content
+                html_table = df.to_html(
+                    index=parameters.get("index", False),
+                    table_id=parameters.get("table_id", "data"),
+                    classes=parameters.get("classes", "dataframe"),
+                    escape=parameters.get("escape", True)
+                )
+                
+                title = parameters.get("title", "Data Exchange")
+                css_content = """
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .dataframe { margin-bottom: 20px; }
+                """
+                
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <title>{title}</title>
+                    <style>
+                        {css_content}
+                    </style>
+                </head>
+                <body>
+                    <h1>{title}</h1>
+                    {html_table}
+                </body>
+                </html>
+                """
+                
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                
+                try:
+                    # Try WeasyPrint
+                    import weasyprint
+                    weasyprint.HTML(filename=html_path).write_pdf(output_path)
+                except ImportError:
+                    try:
+                        # Try pdfkit
+                        import pdfkit
+                        options = {
+                            'page-size': parameters.get("page_size", "A4"),
+                            'orientation': parameters.get("orientation", "portrait"),
+                            'margin-top': f"{parameters.get('margin', 1.0)}in",
+                            'margin-right': f"{parameters.get('margin', 1.0)}in",
+                            'margin-bottom': f"{parameters.get('margin', 1.0)}in",
+                            'margin-left': f"{parameters.get('margin', 1.0)}in",
+                        }
+                        pdfkit.from_file(html_path, str(output_path), options=options)
+                    except ImportError:
+                        raise ConversionError(
+                            "Either WeasyPrint or pdfkit is required for PDF conversion. "
+                            "Install with 'pip install weasyprint' or 'pip install pdfkit'."
+                        )
+                finally:
+                    # Cleanup temporary file
+                    import os
+                    if os.path.exists(html_path):
+                        os.unlink(html_path)
+                        
+            elif output_format == "docx":
+                # Convert to DOCX
+                try:
+                    import docx
+                    from docx import Document
+                    
+                    doc = Document()
+                    
+                    # Add title
+                    title = parameters.get("title", "Data Exchange")
+                    doc.add_heading(title, level=1)
+                    
+                    # Add table
+                    table = doc.add_table(rows=len(df) + 1, cols=len(df.columns))
+                    table.style = parameters.get("table_style", "Table Grid")
+                    
+                    # Add header row
+                    for col_idx, column in enumerate(df.columns):
+                        table.cell(0, col_idx).text = str(column)
+                    
+                    # Add data rows
+                    for row_idx, row in enumerate(df.iterrows()):
+                        for col_idx, value in enumerate(row[1]):
+                            table.cell(row_idx + 1, col_idx).text = str(value)
+                    
+                    # Save document
+                    doc.save(output_path)
+                except ImportError:
+                    raise ConversionError(
+                        "python-docx is required for DOCX conversion. "
+                        "Install with 'pip install python-docx'."
+                    )
+                    
+            elif output_format == "md":
+                # Convert to Markdown
+                with open(output_path, "w", encoding="utf-8") as f:
+                    # Write title
+                    title = parameters.get("title", "Data Exchange")
+                    f.write(f"# {title}\n\n")
+                    
+                    # Write table header
+                    f.write("| " + " | ".join(str(col) for col in df.columns) + " |\n")
+                    f.write("| " + " | ".join(["---"] * len(df.columns)) + " |\n")
+                    
+                    # Write rows
+                    for _, row in df.iterrows():
+                        f.write("| " + " | ".join(str(val) for val in row) + " |\n")
+        
+        except Exception as e:
+            raise ConversionError(f"Failed to convert to {output_format}: {str(e)}")
+            
     def _normalize_data_for_csv(
         self, 
         data: Any, 

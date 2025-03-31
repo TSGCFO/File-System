@@ -26,7 +26,7 @@ from fileconverter.utils.validation import validate_file_path
 logger = get_logger(__name__)
 
 # Define supported formats
-SUPPORTED_FORMATS = ["xlsx", "xls", "csv", "tsv", "json", "xml", "html"]
+SUPPORTED_FORMATS = ["xlsx", "xls", "csv", "tsv", "json", "xml", "html", "docx", "pdf", "txt", "md", "yaml", "ini", "toml"]
 
 
 class SpreadsheetConverter(BaseConverter):
@@ -40,7 +40,7 @@ class SpreadsheetConverter(BaseConverter):
     @classmethod
     def get_output_formats(cls) -> List[str]:
         """Get the list of output formats supported by this converter."""
-        return ["xlsx", "csv", "tsv", "json", "html", "xml"]
+        return ["xlsx", "csv", "tsv", "json", "html", "xml", "docx", "pdf", "txt", "md", "yaml", "ini", "toml"]
     
     @classmethod
     def get_format_extensions(cls, format_name: str) -> List[str]:
@@ -53,6 +53,13 @@ class SpreadsheetConverter(BaseConverter):
             "json": ["json"],
             "xml": ["xml"],
             "html": ["html", "htm"],
+            "docx": ["docx"],
+            "pdf": ["pdf"],
+            "txt": ["txt"],
+            "md": ["md", "markdown"],
+            "yaml": ["yaml", "yml"],
+            "ini": ["ini", "conf", "cfg"],
+            "toml": ["toml"],
         }
         return format_map.get(format_name.lower(), [])
     
@@ -115,7 +122,6 @@ class SpreadsheetConverter(BaseConverter):
                 df = self._load_json(input_path, parameters)
             else:
                 raise ConversionError(f"Unsupported input format: {input_format}")
-            
             # Save spreadsheet data based on output format
             if output_format in ["xlsx", "xls"]:
                 self._save_excel(df, output_path, parameters)
@@ -129,6 +135,20 @@ class SpreadsheetConverter(BaseConverter):
                 self._save_html(df, output_path, parameters)
             elif output_format == "xml":
                 self._save_xml(df, output_path, parameters)
+            elif output_format == "docx":
+                self._save_docx(df, output_path, parameters)
+            elif output_format == "pdf":
+                self._save_pdf(df, output_path, parameters)
+            elif output_format == "txt":
+                self._save_txt(df, output_path, parameters)
+            elif output_format == "md":
+                self._save_md(df, output_path, parameters)
+            elif output_format == "yaml":
+                self._save_yaml(df, output_path, parameters)
+            elif output_format == "ini":
+                self._save_ini(df, output_path, parameters)
+            elif output_format == "toml":
+                self._save_toml(df, output_path, parameters)
             else:
                 raise ConversionError(f"Unsupported output format: {output_format}")
         
@@ -237,6 +257,109 @@ class SpreadsheetConverter(BaseConverter):
                     "type": "string",
                     "description": "Row element name",
                     "default": "row",
+                },
+            },
+            "docx": {
+                "title": {
+                    "type": "string",
+                    "description": "Document title",
+                    "default": "Spreadsheet Data",
+                },
+                "table_style": {
+                    "type": "string",
+                    "description": "Style for the table",
+                    "default": "Table Grid",
+                },
+            },
+            "pdf": {
+                "page_size": {
+                    "type": "string",
+                    "description": "Page size (e.g., A4, Letter)",
+                    "default": "A4",
+                    "options": ["A4", "Letter", "Legal"],
+                },
+                "orientation": {
+                    "type": "string",
+                    "description": "Page orientation",
+                    "default": "portrait",
+                    "options": ["portrait", "landscape"],
+                },
+                "margin": {
+                    "type": "number",
+                    "description": "Page margin in inches",
+                    "default": 1.0,
+                    "min": 0.0,
+                    "max": 3.0,
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Document title",
+                    "default": "Spreadsheet Data",
+                },
+            },
+            "txt": {
+                "encoding": {
+                    "type": "string",
+                    "description": "Text encoding",
+                    "default": "utf-8",
+                },
+                "delimiter": {
+                    "type": "string",
+                    "description": "Delimiter for columns",
+                    "default": "\t",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Document title",
+                    "default": "Spreadsheet Data",
+                },
+            },
+            "md": {
+                "encoding": {
+                    "type": "string",
+                    "description": "Text encoding",
+                    "default": "utf-8",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Document title",
+                    "default": "Spreadsheet Data",
+                },
+            },
+            "yaml": {
+                "include_metadata": {
+                    "type": "boolean",
+                    "description": "Whether to include metadata in output",
+                    "default": False,
+                },
+                "default_flow_style": {
+                    "type": "boolean",
+                    "description": "Use flow style for collections",
+                    "default": False,
+                },
+                "sort_keys": {
+                    "type": "boolean",
+                    "description": "Whether to sort keys alphabetically",
+                    "default": False,
+                },
+            },
+            "ini": {
+                "section_prefix": {
+                    "type": "string",
+                    "description": "Prefix for section names",
+                    "default": "item",
+                },
+                "include_metadata": {
+                    "type": "boolean",
+                    "description": "Whether to include metadata in output",
+                    "default": True,
+                },
+            },
+            "toml": {
+                "include_metadata": {
+                    "type": "boolean",
+                    "description": "Whether to include metadata in output",
+                    "default": True,
                 },
             },
         }
@@ -574,6 +697,400 @@ class SpreadsheetConverter(BaseConverter):
             
             except Exception as e:
                 raise ConversionError(f"Failed to save XML file: {str(e)}")
+                
+            def _save_docx(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a DOCX file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                try:
+                    import docx
+                    from docx import Document
+                    from docx.shared import Inches
+                    
+                    document = Document()
+                    
+                    # Add title
+                    title = parameters.get("title", "Spreadsheet Data")
+                    document.add_heading(title, level=1)
+                    
+                    # Add table
+                    table = document.add_table(rows=len(df) + 1, cols=len(df.columns))
+                    table.style = parameters.get("table_style", "Table Grid")
+                    
+                    # Add header row
+                    for col_idx, column in enumerate(df.columns):
+                        table.cell(0, col_idx).text = str(column)
+                    
+                    # Add data rows
+                    for row_idx, row in enumerate(df.itertuples(index=False)):
+                        for col_idx, value in enumerate(row):
+                            table.cell(row_idx + 1, col_idx).text = str(value)
+                    
+                    # Save the document
+                    document.save(file_path)
+                except ImportError:
+                    raise ConversionError(
+                        "python-docx is required for DOCX conversion. "
+                        "Install it with 'pip install python-docx'."
+                    )
+                except Exception as e:
+                    raise ConversionError(f"Failed to save DOCX file: {str(e)}")
+            
+            def _save_pdf(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a PDF file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                try:
+                    # First convert to HTML
+                    html_content = df.to_html(
+                        index=parameters.get("index", False),
+                        table_id=parameters.get("table_id", "data"),
+                        classes=parameters.get("classes", "dataframe"),
+                        escape=parameters.get("escape", True)
+                    )
+                    
+                    # Add CSS
+                    css_content = """
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .dataframe { margin-bottom: 20px; }
+                    """
+                    
+                    # Create full HTML document
+                    title = parameters.get("title", "Spreadsheet Data")
+                    html_doc = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>{title}</title>
+                        <style>
+                            {css_content}
+                        </style>
+                    </head>
+                    <body>
+                        <h1>{title}</h1>
+                        {html_content}
+                    </body>
+                    </html>
+                    """
+                    
+                    # Convert HTML to PDF
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as temp_html:
+                        temp_html_path = temp_html.name
+                        temp_html.write(html_doc.encode('utf-8'))
+                    
+                    try:
+                        # Try to use WeasyPrint
+                        import weasyprint
+                        weasyprint.HTML(filename=temp_html_path).write_pdf(
+                            file_path,
+                            stylesheets=[],
+                            presentational_hints=True
+                        )
+                    except ImportError:
+                        try:
+                            # Try to use pdfkit with wkhtmltopdf
+                            import pdfkit
+                            options = {
+                                'page-size': parameters.get("page_size", "A4"),
+                                'orientation': parameters.get("orientation", "portrait"),
+                                'margin-top': f"{parameters.get('margin', 1.0)}in",
+                                'margin-right': f"{parameters.get('margin', 1.0)}in",
+                                'margin-bottom': f"{parameters.get('margin', 1.0)}in",
+                                'margin-left': f"{parameters.get('margin', 1.0)}in",
+                            }
+                            pdfkit.from_file(temp_html_path, file_path, options=options)
+                        except ImportError:
+                            # Try to use LibreOffice headless conversion
+                            import subprocess
+                            result = subprocess.run(
+                                [
+                                    "libreoffice", "--headless", "--convert-to", "pdf",
+                                    "--outdir", str(file_path.parent),
+                                    temp_html_path
+                                ],
+                                capture_output=True,
+                                text=True,
+                                check=True,
+                            )
+                            # Move the output file to the desired location if needed
+                            output_path = Path(temp_html_path).with_suffix('.pdf')
+                            if output_path.name != file_path.name:
+                                import shutil
+                                shutil.move(output_path, file_path)
+                    finally:
+                        # Cleanup temporary file
+                        import os
+                        if os.path.exists(temp_html_path):
+                            os.unlink(temp_html_path)
+                except Exception as e:
+                    raise ConversionError(f"Failed to save PDF file: {str(e)}")
+            
+            def _save_txt(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a plain text file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                encoding = parameters.get("encoding", "utf-8")
+                delimiter = parameters.get("delimiter", "\t")
+                
+                try:
+                    with open(file_path, "w", encoding=encoding) as f:
+                        # Write title if provided
+                        title = parameters.get("title")
+                        if title:
+                            f.write(f"{title}\n\n")
+                        
+                        # Write headers
+                        headers = df.columns
+                        f.write(delimiter.join(str(h) for h in headers) + "\n")
+                        
+                        # Write separator line
+                        f.write(delimiter.join(["-" * len(str(h)) for h in headers]) + "\n")
+                        
+                        # Write data rows
+                        for _, row in df.iterrows():
+                            f.write(delimiter.join(str(v) for v in row) + "\n")
+                except Exception as e:
+                    raise ConversionError(f"Failed to save TXT file: {str(e)}")
+            
+            def _save_md(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a Markdown file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                encoding = parameters.get("encoding", "utf-8")
+                
+                try:
+                    with open(file_path, "w", encoding=encoding) as f:
+                        # Write title if provided
+                        title = parameters.get("title", "Spreadsheet Data")
+                        f.write(f"# {title}\n\n")
+                        
+                        # Write headers
+                        headers = df.columns
+                        f.write("| " + " | ".join(str(h) for h in headers) + " |\n")
+                        
+                        # Write separator
+                        f.write("| " + " | ".join(["---"] * len(headers)) + " |\n")
+                        
+                        # Write data rows
+                        for _, row in df.iterrows():
+                            f.write("| " + " | ".join(str(v) for v in row) + " |\n")
+                except Exception as e:
+                    raise ConversionError(f"Failed to save Markdown file: {str(e)}")
+            
+            def _save_yaml(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a YAML file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                try:
+                    import yaml
+                    import datetime
+                    
+                    # Convert DataFrame to list of dictionaries
+                    data = df.to_dict(orient='records')
+                    
+                    # Add metadata if needed
+                    if parameters.get("include_metadata", False):
+                        yaml_data = {
+                            "metadata": {
+                                "title": parameters.get("title", "Spreadsheet Data"),
+                                "created": str(datetime.datetime.now()),
+                                "columns": list(df.columns),
+                                "rows": len(df)
+                            },
+                            "data": data
+                        }
+                    else:
+                        yaml_data = data
+                    
+                    # Write to file
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        yaml.dump(
+                            yaml_data,
+                            f,
+                            default_flow_style=parameters.get("default_flow_style", False),
+                            sort_keys=parameters.get("sort_keys", False),
+                            allow_unicode=True
+                        )
+                except ImportError:
+                    raise ConversionError(
+                        "PyYAML is required for YAML conversion. "
+                        "Install it with 'pip install pyyaml'."
+                    )
+                except Exception as e:
+                    raise ConversionError(f"Failed to save YAML file: {str(e)}")
+            
+            def _save_ini(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to an INI file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                try:
+                    import configparser
+                    import datetime
+                    
+                    config = configparser.ConfigParser()
+                    
+                    # Create sections and properties
+                    for idx, row in df.iterrows():
+                        section_name = parameters.get("section_prefix", "item") + str(idx)
+                        config[section_name] = {}
+                        
+                        for col in df.columns:
+                            # Convert all values to strings for INI file
+                            config[section_name][str(col)] = str(row[col])
+                    
+                    # Add metadata section if requested
+                    if parameters.get("include_metadata", True):
+                        config["metadata"] = {
+                            "title": parameters.get("title", "Spreadsheet Data"),
+                            "created": str(datetime.datetime.now()),
+                            "columns": str(list(df.columns)),
+                            "rows": str(len(df))
+                        }
+                    
+                    # Write to file
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        config.write(f)
+                except Exception as e:
+                    raise ConversionError(f"Failed to save INI file: {str(e)}")
+            
+            def _save_toml(
+                self,
+                df: "pd.DataFrame",
+                file_path: Path,
+                parameters: Dict[str, Any]
+            ) -> None:
+                """Save data to a TOML file.
+                
+                Args:
+                    df: Pandas DataFrame to save.
+                    file_path: Path where to save the file.
+                    parameters: Conversion parameters.
+                
+                Raises:
+                    ConversionError: If the file cannot be saved.
+                """
+                try:
+                    import datetime
+                    
+                    # Try different TOML libraries
+                    try:
+                        import tomli_w
+                        has_tomli_w = True
+                    except ImportError:
+                        try:
+                            import toml
+                            has_tomli_w = False
+                        except ImportError:
+                            raise ConversionError(
+                                "toml or tomli_w is required for TOML conversion. "
+                                "Install it with 'pip install toml' or 'pip install tomli_w'."
+                            )
+                    
+                    # Convert DataFrame to list of dictionaries
+                    items = df.to_dict(orient='records')
+                    
+                    # Create TOML data structure
+                    toml_data = {
+                        "items": items
+                    }
+                    
+                    # Add metadata if requested
+                    if parameters.get("include_metadata", True):
+                        toml_data["metadata"] = {
+                            "title": parameters.get("title", "Spreadsheet Data"),
+                            "created": str(datetime.datetime.now()),
+                            "columns": list(df.columns),
+                            "rows": len(df)
+                        }
+                    
+                    # Write to file
+                    if has_tomli_w:
+                        # Using tomli_w (Python 3.11+)
+                        with open(file_path, "wb") as f:
+                            tomli_w.dump(toml_data, f)
+                    else:
+                        # Using toml
+                        with open(file_path, "w", encoding="utf-8") as f:
+                            toml.dump(toml_data, f)
+                except Exception as e:
+                    raise ConversionError(f"Failed to save TOML file: {str(e)}")
         
         except Exception as e:
             raise ConversionError(f"Failed to save XML file: {str(e)}")

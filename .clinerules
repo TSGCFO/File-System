@@ -22,6 +22,7 @@ Note: in general you should not use the ask command because it does not include 
 **Implementation Planning:**
 `cursor-tools plan "<query>"` - Generate a focused implementation plan using AI (e.g., `cursor-tools plan "Add user authentication to the login page"`)
 The plan command uses multiple AI models to:
+
 1. Identify relevant files in your codebase (using Gemini by default)
 2. Extract content from those files
 3. Generate a detailed implementation plan (using OpenAI o3-mini by default)
@@ -66,6 +67,7 @@ Use the following commands to interact with MCP servers and their specialized to
 The `search` command helps you discover servers in the MCP Marketplace based on their capabilities and your requirements. The `run` command automatically selects and executes appropriate tools from these servers based on your natural language queries. If you want to use a specific server include the server name in your query. E.g. `cursor-tools mcp run "using the mcp-server-sqlite list files in directory --provider=openrouter"`
 
 **Notes on MCP Commands:**
+
 - MCP commands require `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` to be set in your environment
 - By default the `mcp` command uses Anthropic, but takes a --provider argument that can be set to 'anthropic' or 'openrouter'
 - Results are streamed in real-time for immediate feedback
@@ -79,6 +81,7 @@ The `search` command helps you discover servers in the MCP Marketplace based on 
 `cursor-tools browser extract "<instruction>" --url=<url> [options]` - Extract data from a webpage based on natural language instructions (e.g., `cursor-tools browser extract "product names" --url=https://example.com/products`)
 
 **Notes on Browser Commands:**
+
 - All browser commands are stateless unless --connect-to is used to connect to a long-lived interactive session. In disconnected mode each command starts with a fresh browser instance and closes it when done.
 - When using `--connect-to`, special URL values are supported:
   - `current`: Use the existing page without reloading
@@ -89,6 +92,7 @@ The `search` command helps you discover servers in the MCP Marketplace based on 
 - DO NOT ask browser act to "wait" for anything, the wait command is currently disabled in Stagehand.
 
 **Tool Recommendations:**
+
 - `cursor-tools web` is best for general web information not specific to the repository. Generally call this without additional arguments.
 - `cursor-tools repo` is ideal for repository-specific questions, planning, code review and debugging. E.g. `cursor-tools repo "Review recent changes to command error handling looking for mistakes, omissions and improvements"`. Generally call this without additional arguments.
 - `cursor-tools plan` is ideal for planning tasks. E.g. `cursor-tools plan "Adding authentication with social login using Google and Github"`. Generally call this without additional arguments.
@@ -98,6 +102,7 @@ The `search` command helps you discover servers in the MCP Marketplace based on 
 - `cursor-tools mcp` enables interaction with specialized tools through MCP servers (e.g., for Git operations, file system tasks, or custom tools)
 
 **Running Commands:**
+
 1. Use `cursor-tools <command>` to execute commands (make sure cursor-tools is installed globally using npm install -g cursor-tools so that it is in your PATH)
 
 **General Command Options (Supported by all commands):**
@@ -162,6 +167,7 @@ If people say "ask Gemini" or "ask Perplexity" or "ask Stagehand" they mean to u
 `cursor-tools xcode lint` - Run static analysis on the Xcode project to find and fix issues.
 
 **Additional Notes:**
+
 - For detailed information, see `node_modules/cursor-tools/README.md` (if installed locally).
 - Configuration is in `cursor-tools.config.json` (or `~/.cursor-tools/config.json`).
 - API keys are loaded from `.cursor-tools.env` (or `~/.cursor-tools/.env`).

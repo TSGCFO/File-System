@@ -67,7 +67,7 @@ from fileconverter.utils.validation import validate_file_path
 logger = get_logger(__name__)
 
 # Define supported formats
-SUPPORTED_FORMATS = ["doc", "docx", "rtf", "odt", "pdf", "txt", "html", "htm", "md"]
+SUPPORTED_FORMATS = ["doc", "docx", "rtf", "odt", "pdf", "txt", "html", "htm", "md", "xlsx", "csv", "tsv", "json", "xml", "yaml", "ini", "toml"]
 
 class DocumentConverter(BaseConverter):
     """Converter for document formats.
@@ -134,12 +134,20 @@ class DocumentConverter(BaseConverter):
                 - "txt": Plain Text
                 - "html": HTML Document
                 - "md": Markdown
+                - "xlsx": Microsoft Excel Spreadsheet
+                - "csv": Comma-Separated Values
+                - "tsv": Tab-Separated Values
+                - "json": JavaScript Object Notation
+                - "xml": eXtensible Markup Language
+                - "yaml": YAML Ain't Markup Language
+                - "ini": Configuration File
+                - "toml": Tom's Obvious, Minimal Language
                 
         Note:
             Output format support may depend on the availability of required
             libraries and external tools.
         """
-        return ["docx", "pdf", "txt", "html", "md"]
+        return ["docx", "pdf", "txt", "html", "md", "xlsx", "csv", "tsv", "json", "xml", "yaml", "ini", "toml"]
     
     @classmethod
     def get_format_extensions(cls, format_name: str) -> List[str]:
@@ -172,6 +180,15 @@ class DocumentConverter(BaseConverter):
             "txt": ["txt"],
             "html": ["html", "htm"],
             "md": ["md", "markdown"],
+            "xlsx": ["xlsx"],
+            "xls": ["xls"],
+            "csv": ["csv"],
+            "tsv": ["tsv"],
+            "json": ["json"],
+            "xml": ["xml"],
+            "yaml": ["yaml", "yml"],
+            "ini": ["ini", "conf", "cfg"],
+            "toml": ["toml"],
         }
         return format_map.get(format_name.lower(), [])
     
@@ -294,6 +311,9 @@ class DocumentConverter(BaseConverter):
             html_path = temp_dir / "temp.html"
             self._convert_text_to_html(input_path, html_path, parameters)
             result = self._convert_html_to_pdf(html_path, output_path, parameters)
+        # Handle conversions to spreadsheet and data exchange formats
+        elif output_format in ["xlsx", "csv", "tsv", "json", "xml", "yaml", "ini", "toml"]:
+            result = self._convert_to_data_format(input_path, output_path, input_format, output_format, temp_dir, parameters)
         else:
             raise ConversionError(
                 f"Conversion from {input_format} to {output_format} is not supported"
@@ -810,3 +830,254 @@ class DocumentConverter(BaseConverter):
             "input_path": str(input_path),
             "output_path": str(output_path),
         }
+        
+    def _convert_to_data_format(
+        self,
+        input_path: Path,
+        output_path: Path,
+        input_format: str,
+        output_format: str,
+        temp_dir: Path,
+        parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Convert a document to a data format (spreadsheet, CSV, JSON, etc.).
+        
+        This method handles conversions from document formats to data formats by:
+        1. First converting the document to HTML (as an intermediary format)
+        2. Parsing the HTML to extract structured data
+        3. Outputting the data in the requested format
+        
+        Args:
+            input_path: Path to the input document.
+            output_path: Path where the output file will be saved.
+            input_format: Format of the input file.
+            output_format: Format of the output file.
+            temp_dir: Directory for temporary files.
+            parameters: Conversion parameters.
+            
+        Returns:
+            Dictionary with information about the conversion.
+            
+        Raises:
+            ConversionError: If the conversion fails.
+        """
+        try:
+            # First convert to HTML as intermediate format
+            html_path = temp_dir / "temp.html"
+            
+            if input_format == "docx":
+                import docx
+                from docx import Document
+                
+                # Extract text and structure from DOCX
+                doc = Document(input_path)
+                
+                # Create simple HTML
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write("<html><body>\n")
+                    
+                    # Process paragraphs and tables
+                    for item in doc.element.body:
+                        if item.tag.endswith('p'):
+                            # Process paragraph
+                            p = docx.text.paragraph.Paragraph(item, doc)
+                            f.write(f"<p>{p.text}</p>\n")
+                        elif item.tag.endswith('tbl'):
+                            # Process table
+                            f.write("<table border='1'>\n")
+                            
+                            tbl = item
+                            for row in tbl.findall('.//{*}tr'):
+                                f.write("<tr>\n")
+                                for cell in row.findall('.//{*}tc'):
+                                    text = ''.join(cell.xpath('.//text()'))
+                                    f.write(f"<td>{text}</td>\n")
+                                f.write("</tr>\n")
+                            
+                            f.write("</table>\n")
+                    
+                    f.write("</body></html>")
+            
+            elif input_format == "pdf":
+                # Extract text from PDF
+                try:
+                    import fitz  # PyMuPDF
+                    
+                    pdf = fitz.open(input_path)
+                    with open(html_path, "w", encoding="utf-8") as f:
+                        f.write("<html><body>\n")
+                        
+                        for page_num in range(len(pdf)):
+                            page = pdf[page_num]
+                            text = page.get_text()
+                            
+                            # Simple text-to-HTML conversion
+                            paragraphs = text.split('\n\n')
+                            for p in paragraphs:
+                                if p.strip():
+                                    f.write(f"<p>{p.replace('\n', ' ')}</p>\n")
+                        
+                        f.write("</body></html>")
+                except ImportError:
+                    # Fallback using pdfminer
+                    try:
+                        from pdfminer.high_level import extract_text
+                        
+                        text = extract_text(input_path)
+                        with open(html_path, "w", encoding="utf-8") as f:
+                            f.write("<html><body>\n")
+                            
+                            # Simple text-to-HTML conversion
+                            paragraphs = text.split('\n\n')
+                            for p in paragraphs:
+                                if p.strip():
+                                    f.write(f"<p>{p.replace('\n', ' ')}</p>\n")
+                            
+                            f.write("</body></html>")
+                    except ImportError:
+                        raise ConversionError(
+                            "Either PyMuPDF or pdfminer.six is required for PDF conversion. "
+                            "Install with 'pip install pymupdf' or 'pip install pdfminer.six'."
+                        )
+            
+            elif input_format == "md":
+                # Convert markdown to HTML
+                self._convert_markdown_to_html(input_path, html_path, parameters)
+            
+            elif input_format == "txt":
+                # Convert text to HTML
+                self._convert_text_to_html(input_path, html_path, parameters)
+            
+            elif input_format in ["html", "htm"]:
+                # Already HTML
+                import shutil
+                shutil.copy2(input_path, html_path)
+                
+            else:
+                raise ConversionError(f"Unsupported input format for data conversion: {input_format}")
+            
+            # Now extract data from HTML and convert to target format
+            from bs4 import BeautifulSoup
+            import pandas as pd
+            
+            with open(html_path, "r", encoding="utf-8") as f:
+                soup = BeautifulSoup(f, "html.parser")
+            
+            # Extract tables
+            tables = soup.find_all("table")
+            
+            if tables:
+                # Use tables if available
+                dfs = pd.read_html(html_path)
+                df = dfs[0]  # Use the first table
+            else:
+                # No tables found, create structured data from paragraphs
+                paragraphs = soup.find_all("p")
+                data = {"content": [p.get_text() for p in paragraphs]}
+                df = pd.DataFrame(data)
+                
+            # Output to target format
+            if output_format == "xlsx":
+                df.to_excel(output_path, index=False)
+            elif output_format == "csv":
+                df.to_csv(output_path, index=False)
+            elif output_format == "tsv":
+                df.to_csv(output_path, sep="\t", index=False)
+            elif output_format == "json":
+                df.to_json(output_path, orient="records", indent=2)
+            elif output_format == "xml":
+                # Convert to XML using dicttoxml
+                try:
+                    from dicttoxml import dicttoxml
+                    
+                    data = df.to_dict(orient="records")
+                    xml = dicttoxml(
+                        data,
+                        custom_root="data",
+                        item_func=lambda x: "row",
+                        attr_type=False
+                    )
+                    
+                    with open(output_path, "wb") as f:
+                        f.write(xml)
+                except ImportError:
+                    # Simple XML creation
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+                        f.write('<data>\n')
+                        
+                        for _, row in df.iterrows():
+                            f.write('  <row>\n')
+                            for col, value in row.items():
+                                if pd.isna(value):
+                                    f.write(f'    <{col}/>\n')
+                                else:
+                                    f.write(f'    <{col}>{value}</{col}>\n')
+                            f.write('  </row>\n')
+                        
+                        f.write('</data>\n')
+            elif output_format == "yaml":
+                # Output to YAML
+                try:
+                    import yaml
+                    
+                    data = df.to_dict(orient="records")
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        yaml.dump(data, f, allow_unicode=True)
+                except ImportError:
+                    raise ConversionError(
+                        "PyYAML is required for YAML conversion. "
+                        "Install it with 'pip install pyyaml'."
+                    )
+            elif output_format == "ini":
+                # Output to INI
+                import configparser
+                
+                config = configparser.ConfigParser()
+                
+                # Create sections for each row
+                for idx, row in df.iterrows():
+                    section_name = f"row{idx}"
+                    config[section_name] = {}
+                    
+                    for col, value in row.items():
+                        if not pd.isna(value):
+                            config[section_name][str(col)] = str(value)
+                
+                with open(output_path, "w", encoding="utf-8") as f:
+                    config.write(f)
+            elif output_format == "toml":
+                # Output to TOML
+                try:
+                    import tomli_w
+                    has_tomli_w = True
+                except ImportError:
+                    try:
+                        import toml
+                        has_tomli_w = False
+                    except ImportError:
+                        raise ConversionError(
+                            "toml or tomli_w is required for TOML conversion. "
+                            "Install it with 'pip install toml' or 'pip install tomli_w'."
+                        )
+                
+                data = {"items": df.to_dict(orient="records")}
+                
+                if has_tomli_w:
+                    with open(output_path, "wb") as f:
+                        tomli_w.dump(data, f)
+                else:
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        toml.dump(data, f)
+            
+            return {
+                "input_format": input_format,
+                "output_format": output_format,
+                "input_path": str(input_path),
+                "output_path": str(output_path),
+            }
+            
+        except Exception as e:
+            raise ConversionError(
+                f"Failed to convert {input_format} to {output_format}: {str(e)}"
+            )
