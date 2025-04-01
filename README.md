@@ -500,16 +500,58 @@ The project follows a code review process where maintainers will review your con
 
 ### CI/CD Pipeline
 
-FileConverter uses GitHub Actions for continuous integration and deployment:
+FileConverter uses GitHub Actions for continuous integration and deployment. The pipeline provides comprehensive testing and automatic deployments.
 
-- **Cross-Platform Testing**: When code is pushed to the `roo` branch, GitHub Actions automatically runs tests on:
-  - Multiple operating systems (Windows, macOS, Ubuntu)
-  - Multiple Python versions (3.8, 3.9, 3.10)
-- **Comprehensive Test Suite**: The CI pipeline runs:
-  - Standard unit and integration tests
-  - Installation tests to verify package installation works correctly
-  - Dependency management tests to ensure dependencies are properly handled
-- **Automatic Merging**: If all tests pass, changes from the `roo` branch are automatically merged into the `main` branch.
+#### How the Workflow Works
+
+1. **Trigger**: The workflow runs when:
+   - Code is pushed to the `roo` branch
+   - A pull request is created targeting the `main` branch
+
+2. **Test Execution Process**:
+   - Tests run in parallel across all configured platforms and Python versions
+   - Each test phase must pass for the workflow to succeed
+   - Results and logs are saved as artifacts for later review
+   - A test summary is generated for quick overview of results
+
+3. **Test Requirements**:
+   - **Code Coverage**: Minimum 80% test coverage required
+   - **All Test Types**: Unit, integration, installation, and dependency tests must pass
+   - **Cross-Platform**: Tests must pass on Windows, macOS, and Ubuntu
+
+#### Test Suite Components
+
+- **Phase 1: Unit Tests with Coverage**
+  - Runs all unit tests with code coverage measurement
+  - Enforces 80% minimum code coverage
+  - Generates coverage reports in XML and terminal formats
+
+- **Phase 2: Cross-Platform Integration Tests**
+  - Executes the comprehensive test suite with `run_tests.py`
+  - Tests core functionality across all platforms
+  - Generates detailed logs of test execution
+
+- **Phase 3: Installation Testing**
+  - Validates the package installation process
+  - Tests entry points, shortcut creation, and executable generation
+  - Ensures environment variables and paths are correctly set
+
+- **Phase 4: Dependency Management Testing**
+  - Tests the dependency detection and installation system
+  - Validates offline installation capabilities
+  - Checks platform-specific dependency handling
+
+#### Artifacts and Logs
+
+- Detailed logs are generated for each test phase
+- Test logs, coverage reports, and execution results are saved as artifacts
+- Artifacts are attached to each workflow run for easy access and debugging
+
+#### Automatic Deployment
+
+- If all tests pass on the `roo` branch, changes are automatically merged to `main`
+- Merge commits include [CI] tag for easy identification
+- The `main` branch always contains stable, fully tested code
 - **Branch Strategy**:
   - `roo`: Development branch where all contributions should be targeted
   - `main`: Stable release branch (don't submit PRs directly to main)

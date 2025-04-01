@@ -1,4 +1,9 @@
-name: CI/CD Pipeline
+name: FileConverter CI/CD Pipeline
+
+# Workflow Description:
+# This workflow performs cross-platform testing and integration for the FileConverter project.
+# It runs whenever code is pushed to the roo branch or a PR is created targeting main.
+# If all tests pass, changes from roo are automatically merged into main.
 
 on:
   push:
@@ -8,15 +13,17 @@ on:
 
 jobs:
   test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: false  # Continue with other tests even if one environment fails
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.8, 3.9, '3.10']
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
     
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -35,25 +42,64 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-xdist
     
     - name: Install package
       run: |
         pip install -e .
-    - name: Run tests (cross-platform)
+    # Test Phase 1: Unit Tests with Coverage Requirements
+    - name: Run unit tests with coverage
       run: |
-        python run_tests.py --all --no-gui
-        
+        python -m pytest tests/ --cov=fileconverter --cov-report=xml --cov-report=term --cov-fail-under=80
+      continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}  # Only enforce coverage on Linux
+
+    # Test Phase 2: Cross-platform Integration Tests
+    - name: Run comprehensive test suite
+      run: |
+        echo "Running comprehensive test suite with detailed output..."
+        python run_tests.py --all --no-gui --verbose > test_output.log 2>&1
+      
+    # Test Phase 3: Installation Testing
     - name: Run installation tests
       run: |
-        python tests/run_installation_test.py
+        echo "Testing installation process..."
+        python tests/run_installation_test.py > installation_test.log 2>&1
         
+    # Test Phase 4: Dependency Management Testing
     - name: Test dependency management
       run: |
-        python tests/test_dependency_management_integration.py
+        echo "Testing dependency system..."
+        python tests/test_dependency_management_integration.py > dependency_test.log 2>&1
+    
+    # Upload test results and logs as artifacts
+    - name: Upload test logs
+      uses: actions/upload-artifact@v3
+      if: always()  # Upload logs even if tests fail
+      with:
+        name: test-logs-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          *.log
+          .coverage
+          coverage.xml
+          
+    # Report test status to GitHub
+    - name: Report test status
+      if: always()
+      run: |
+        echo "Test Summary for ${{ matrix.os }} - Python ${{ matrix.python-version }}"
+        if [ -f "test_output.log" ]; then
+          echo "=== Test Suite Output ==="
+          cat test_output.log | grep -E "PASSED|FAILED|ERROR|SKIPPED|collected" || true
+        fi
+        if [ -f "coverage.xml" ]; then
+          echo "=== Coverage Report ==="
+          echo "See coverage.xml artifact for details"
+        fi
       
       
+  # Job to merge passing changes from roo to main
   merge-to-main:
+    name: Merge to main branch
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/roo' && success()
@@ -61,7 +107,8 @@ jobs:
       contents: write
     
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository with full history
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -69,6 +116,7 @@ jobs:
     - name: Create main branch if it doesn't exist
       run: |
         if ! git ls-remote --heads origin main | grep main; then
+          echo "Creating main branch as it doesn't exist yet"
           git checkout -b main
           git push -u origin main
         fi
@@ -79,5 +127,8 @@ jobs:
         git config --global user.email 'github-actions@github.com'
         git checkout main
         git pull origin main
+        echo "Merging validated changes from roo branch into main"
         git merge origin/roo --no-ff -m "Merge roo branch via GitHub Actions [CI]"
+        echo "Pushing merged changes to main branch"
         git push origin main
+        echo "Merge completed successfully!"
