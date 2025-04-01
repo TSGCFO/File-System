@@ -6,9 +6,10 @@ This module contains unit tests for the document format converter.
 
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 
 # Add parent directory to path to ensure imports work
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -136,13 +137,23 @@ class DocumentConverterTests(unittest.TestCase):
         mock_process.returncode = 0
         mock_run.return_value = mock_process
         
-        # Create mock paths
-        input_path = Path("test.docx")
-        output_path = Path("test.pdf")
-        
-        # Mock import error to force LibreOffice fallback
-        with patch("fileconverter.converters.document.convert", side_effect=ImportError):
-            with patch("os.rename"):  # Mock os.rename to avoid actual file operations
+        # Create a temp file that exists
+        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as temp_input:
+            temp_input_path = temp_input.name
+            
+        try:
+            input_path = Path(temp_input_path)
+            output_path = Path(temp_input_path).with_suffix('.pdf')
+            
+            # Mock the file operations and imports
+            with patch("builtins.open", mock_open()), \
+                 patch("os.path.exists", return_value=True), \
+                 patch("os.rename"), \
+                 patch("importlib.import_module", side_effect=lambda x:
+                       ImportError(f"No module named '{x}'") if x in ["weasyprint", "pdfkit"]
+                       else unittest.mock.DEFAULT):
+                
+                # Test LibreOffice fallback
                 result = self.converter._convert_docx_to_pdf(input_path, output_path, {})
                 
                 self.assertEqual("docx", result["input_format"])
@@ -154,14 +165,20 @@ class DocumentConverterTests(unittest.TestCase):
                 self.assertIn("libreoffice", args)
                 self.assertIn("--convert-to", args)
                 self.assertIn("pdf", args)
+        finally:
+            # Clean up
+            if os.path.exists(temp_input_path):
+                os.unlink(temp_input_path)
     
     def test_convert_unsupported_format(self):
         """Test that conversion between unsupported formats raises an error."""
-        input_path = Path("test.abc")
-        output_path = Path("test.xyz")
-        
-        with self.assertRaises(ConversionError):
-            self.converter.convert(input_path, output_path, Path("/tmp"), {})
+        # Create a temporary file with unsupported extension
+        with tempfile.NamedTemporaryFile(suffix='.abc') as temp_input:
+            input_path = Path(temp_input.name)
+            output_path = Path(temp_input.name).with_suffix('.xyz')
+            
+            with self.assertRaises(ConversionError):
+                self.converter.convert(input_path, output_path, Path(tempfile.gettempdir()), {})
     
     def test_get_parameters(self):
         """Test that parameters are correctly returned."""

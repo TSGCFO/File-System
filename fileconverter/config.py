@@ -277,3 +277,176 @@ def get_config(config_path: Optional[Union[str, Path]] = None) -> Config:
         _config_instance = Config(config_path)
     
     return _config_instance
+
+
+def create_default_config_file(path: Optional[Union[str, Path]] = None) -> Path:
+    """Create a default configuration file with recommended settings.
+    
+    This function creates a new configuration file with the default settings
+    if one doesn't already exist. It's useful for first-time installation to
+    ensure users have a well-documented starting point for configuration.
+    
+    Args:
+        path: Optional path where to create the configuration file.
+              If None, a default location will be used.
+    
+    Returns:
+        Path to the created configuration file.
+        
+    Raises:
+        ConfigError: If the configuration file cannot be created.
+    """
+    # Determine target path
+    if path:
+        config_path = Path(path)
+    else:
+        # Create in user config directory by default
+        config_path = Path.home() / ".config" / "fileconverter" / "config.yaml"
+    
+    # Don't overwrite existing configuration
+    if config_path.exists():
+        logger.info(f"Configuration file already exists at {config_path}")
+        return config_path
+    
+    # Ensure directory exists
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Create the default configuration with comments
+    config_with_comments = """# FileConverter Configuration
+# This file contains settings for the FileConverter application.
+# Modify as needed to customize the behavior of the converter.
+
+general:
+  # Directory for temporary files (leave empty to use system default)
+  temp_dir: null
+  
+  # Whether to preserve temporary files after conversion (useful for debugging)
+  preserve_temp_files: false
+  
+  # Maximum file size in MB that can be converted
+  max_file_size_mb: 100
+
+logging:
+  # Logging level: DEBUG, INFO, WARNING, ERROR, or CRITICAL
+  level: "INFO"
+  
+  # Path to log file (leave empty for console logging only)
+  file: null
+  
+  # Log message format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+converters:
+  # Document converter settings (DOCX, PDF, TXT, etc.)
+  document:
+    # Whether the document converter is enabled
+    enabled: true
+    
+    # PDF output settings
+    pdf:
+      # Resolution in DPI
+      resolution: 300
+      
+      # Compression level: none, low, medium, high
+      compression: "medium"
+    
+    # DOCX output settings
+    docx:
+      # Path to template file (leave empty for default)
+      template: null
+
+  # Spreadsheet converter settings (XLSX, CSV, etc.)
+  spreadsheet:
+    # Whether the spreadsheet converter is enabled
+    enabled: true
+    
+    # Excel output settings
+    excel:
+      # Date format for Excel files
+      date_format: "YYYY-MM-DD"
+      
+      # Number format for Excel files
+      number_format: "#,##0.00"
+    
+    # CSV output settings
+    csv:
+      # Field delimiter (comma, semicolon, tab, etc.)
+      delimiter: ","
+      
+      # Quote character
+      quotechar: "\\""
+      
+      # Text encoding
+      encoding: "utf-8"
+
+  # Image converter settings (JPEG, PNG, etc.)
+  image:
+    # Whether the image converter is enabled
+    enabled: true
+    
+    # JPEG output settings
+    jpeg:
+      # Quality (1-100)
+      quality: 85
+      
+      # Whether to use progressive rendering
+      progressive: true
+    
+    # PNG output settings
+    png:
+      # Compression level (0-9)
+      compression: 9
+
+  # Data exchange converter settings (JSON, XML, etc.)
+  data_exchange:
+    # Whether the data exchange converter is enabled
+    enabled: true
+    
+    # JSON output settings
+    json:
+      # Indentation level
+      indent: 2
+      
+      # Whether to sort keys alphabetically
+      sort_keys: true
+    
+    # XML output settings
+    xml:
+      # Whether to pretty-print the XML
+      pretty: true
+      
+      # Text encoding
+      encoding: "utf-8"
+
+  # Archive converter settings (ZIP, TAR, etc.)
+  archive:
+    # Whether the archive converter is enabled
+    enabled: true
+    
+    # ZIP output settings
+    zip:
+      # Compression method
+      compression: "deflate"
+      
+      # Compression level (0-9)
+      compress_level: 9
+
+# GUI settings
+gui:
+  # Theme: system, light, dark
+  theme: "system"
+  
+  # Maximum number of recent files to remember
+  recent_files_limit: 10
+  
+  # Whether to show tooltips
+  show_tooltips: true
+"""
+    
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write(config_with_comments)
+        logger.info(f"Created default configuration file at {config_path}")
+        return config_path
+    except Exception as e:
+        raise ConfigError(f"Failed to create default configuration file at {config_path}: {str(e)}")
