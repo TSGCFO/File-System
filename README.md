@@ -498,8 +498,25 @@ Please follow these guidelines when contributing:
 
 The project follows a code review process where maintainers will review your contribution before merging. Be responsive to feedback and be prepared to make adjustments if needed.
 
+### CI/CD Pipeline
+
+FileConverter uses GitHub Actions for continuous integration and deployment:
+
+- **Automatic Testing**: When code is pushed to the `roo` branch, GitHub Actions automatically runs all tests (unit, integration) on multiple Python versions (3.8, 3.9, 3.10).
+- **Automatic Merging**: If all tests pass, changes from the `roo` branch are automatically merged into the `main` branch.
+- **Branch Strategy**:
+  - `roo`: Development branch where all contributions should be targeted
+  - `main`: Stable release branch (don't submit PRs directly to main)
+
+Contributors should:
+1. Create feature branches from `roo`
+2. Submit PRs targeting the `roo` branch
+3. Wait for CI tests to complete successfully
+4. Address any test failures before changes can be merged
+
+The CI pipeline runs all tests with the `--no-gui` flag to ensure compatibility in non-GUI environments.
+
 For more detailed information, see [CONTRIBUTING.md](CONTRIBUTING.md).
-For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 
