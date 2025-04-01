@@ -28,6 +28,7 @@ pycryptodomex==3.22.0
 PyPDF2==3.0.1
 pyppmd==1.1.1
 PyQt6==6.8.1
+PyQt6-QScintilla==2.14.1
 PyQt6-Qt6==6.8.2
 PyQt6_sip==13.10.0
 pytest==8.3.5
