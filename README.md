@@ -502,7 +502,13 @@ The project follows a code review process where maintainers will review your con
 
 FileConverter uses GitHub Actions for continuous integration and deployment:
 
-- **Automatic Testing**: When code is pushed to the `roo` branch, GitHub Actions automatically runs all tests (unit, integration) on multiple Python versions (3.8, 3.9, 3.10).
+- **Cross-Platform Testing**: When code is pushed to the `roo` branch, GitHub Actions automatically runs tests on:
+  - Multiple operating systems (Windows, macOS, Ubuntu)
+  - Multiple Python versions (3.8, 3.9, 3.10)
+- **Comprehensive Test Suite**: The CI pipeline runs:
+  - Standard unit and integration tests
+  - Installation tests to verify package installation works correctly
+  - Dependency management tests to ensure dependencies are properly handled
 - **Automatic Merging**: If all tests pass, changes from the `roo` branch are automatically merged into the `main` branch.
 - **Branch Strategy**:
   - `roo`: Development branch where all contributions should be targeted

@@ -8,9 +8,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.8, 3.9, '3.10']
 
     steps:
@@ -38,10 +40,18 @@ jobs:
     - name: Install package
       run: |
         pip install -e .
-    
-    - name: Run tests
+    - name: Run tests (cross-platform)
       run: |
         python run_tests.py --all --no-gui
+        
+    - name: Run installation tests
+      run: |
+        python tests/run_installation_test.py
+        
+    - name: Test dependency management
+      run: |
+        python tests/test_dependency_management_integration.py
+      
       
   merge-to-main:
     needs: test
