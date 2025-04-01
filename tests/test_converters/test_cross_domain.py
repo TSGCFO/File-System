@@ -80,8 +80,39 @@ def test_csv_to_docx_conversion(engine, temp_dir):
     assert os.path.exists(output_path)
     assert os.path.getsize(output_path) > 0
 
+def test_json_to_md_conversion(engine, temp_dir):
+    """Test conversion from JSON to Markdown."""
+    # Create test files
+    input_path = create_test_file(temp_dir / "test.json", SAMPLE_JSON_CONTENT)
+    output_path = temp_dir / "test.md"
+    
+    # Perform conversion
+    result = engine.convert_file(input_path, output_path)
+    
+    # Check results
+    assert result["input_format"] == "json"
+    assert result["output_format"] == "md"
+    assert os.path.exists(output_path)
+    assert os.path.getsize(output_path) > 0
+
 def test_json_to_pdf_conversion(engine, temp_dir):
-    """Test conversion from JSON to PDF."""
+    """Test conversion from JSON to PDF - skipped due to dependency requirements."""
+    # Skip if required PDF dependencies are not available
+    import pytest
+    
+    try:
+        import weasyprint
+        pdf_available = True
+    except ImportError:
+        try:
+            import pdfkit
+            pdf_available = True
+        except ImportError:
+            pdf_available = False
+    
+    if not pdf_available:
+        pytest.skip("PDF conversion dependencies not available")
+    
     # Create test files
     input_path = create_test_file(temp_dir / "test.json", SAMPLE_JSON_CONTENT)
     output_path = temp_dir / "test.pdf"
@@ -95,8 +126,35 @@ def test_json_to_pdf_conversion(engine, temp_dir):
     assert os.path.exists(output_path)
     assert os.path.getsize(output_path) > 0
 
+def test_xml_to_yaml_conversion(engine, temp_dir):
+    """Test conversion from XML to YAML."""
+    # Create test files
+    input_path = create_test_file(temp_dir / "test.xml", SAMPLE_XML_CONTENT)
+    output_path = temp_dir / "test.yaml"
+    
+    # Perform conversion
+    result = engine.convert_file(input_path, output_path)
+    
+    # Check results
+    assert result["input_format"] == "xml"
+    assert result["output_format"] == "yaml"
+    assert os.path.exists(output_path)
+    assert os.path.getsize(output_path) > 0
+
 def test_xml_to_xlsx_conversion(engine, temp_dir):
-    """Test conversion from XML to XLSX."""
+    """Test conversion from XML to XLSX - skipped if openpyxl not available."""
+    # Skip if Excel dependencies are not available
+    import pytest
+    
+    try:
+        import openpyxl
+        xlsx_available = True
+    except ImportError:
+        xlsx_available = False
+    
+    if not xlsx_available:
+        pytest.skip("Excel conversion dependencies not available")
+    
     # Create test files
     input_path = create_test_file(temp_dir / "test.xml", SAMPLE_XML_CONTENT)
     output_path = temp_dir / "test.xlsx"

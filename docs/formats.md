@@ -11,7 +11,6 @@ FileConverter supports conversion between a wide range of file formats, organize
 - **Plain Text (.txt)** - Unformatted text files
 - **HTML (.html, .htm)** - HyperText Markup Language for web pages
 - **Markdown (.md)** - Lightweight markup language
-
 ## Spreadsheet Formats
 
 - **Microsoft Excel (.xls, .xlsx)** - Proprietary spreadsheet formats by Microsoft
@@ -20,6 +19,7 @@ FileConverter supports conversion between a wide range of file formats, organize
 - **JSON (.json)** - JavaScript Object Notation for structured data
 - **XML (.xml)** - eXtensible Markup Language for structured data
 - **HTML (.html)** - HTML table representation of tabular data
+- **Markdown (.md)** - Tabular representation in Markdown format
 
 ## Data Exchange Formats
 
@@ -29,6 +29,7 @@ FileConverter supports conversion between a wide range of file formats, organize
 - **INI (.ini, .conf, .cfg)** - Configuration file format
 - **TOML (.toml)** - Tom's Obvious, Minimal Language for configuration files
 - **CSV (.csv)** - Comma-Separated Values format for tabular data
+- **TSV (.tsv)** - Tab-Separated Values format for tabular data
 - **TSV (.tsv)** - Tab-Separated Values format for tabular data
 
 ## Image Formats
@@ -63,18 +64,28 @@ FileConverter supports conversion between a wide range of file formats, organize
 
 ## Cross-Domain Conversions
 
-FileConverter now supports comprehensive conversions between all non-image formats. This means you can convert:
+FileConverter now supports comprehensive conversions between all non-image formats with enhanced capabilities. This means you can convert:
 
-- Any document format to any spreadsheet or data exchange format
-- Any spreadsheet format to any document or data exchange format  
-- Any data exchange format to any document or spreadsheet format
+- Any document format to any spreadsheet or data exchange format (e.g., DOCX to JSON, MD to XLSX)
+- Any spreadsheet format to any document or data exchange format (e.g., XLSX to PDF, CSV to YAML)
+- Any data exchange format to any document or spreadsheet format (e.g., JSON to DOCX, YAML to XLSX)
 
 These cross-domain conversions enable powerful workflows such as:
 
 - Converting XLSX spreadsheets directly to PDF or DOCX documents
-- Transforming JSON or XML data into formatted documents
-- Converting document formats to structured data formats for analysis or processing
+- Transforming JSON or XML data into formatted documents with proper structural representation
+- Converting document formats to structured data formats for analysis, integration, or API consumption
 - Creating data visualizations from various source formats
+- Seamlessly moving data between different application domains (documents, data, spreadsheets)
+- Extracting structured data from formatted documents for processing
+
+**Conversion Direction Matrix:**
+
+| From ↓ To → | Document (DOCX, PDF, etc.) | Spreadsheet (XLSX, CSV, etc.) | Data Exchange (JSON, XML, etc.) |
+|-------------|----------------------------|-------------------------------|--------------------------------|
+| **Document**| ✓ Native conversion       | ✓ Structure extraction        | ✓ Data extraction              |
+| **Spreadsheet**| ✓ Formatted tables     | ✓ Native conversion           | ✓ Structured data              |
+| **Data Exchange**| ✓ Rendered documents | ✓ Tabular representation      | ✓ Native conversion            |
 
 ## Conversion Quality
 
@@ -89,8 +100,8 @@ The quality and fidelity of conversions can vary depending on the specific forma
 Some conversions require additional dependencies:
 
 - **Document Conversions**: May require `python-docx`, `pypdf`, `markdown`, `weasyprint` or `pdfkit`
-- **Spreadsheet Conversions**: Require `pandas` and optional `openpyxl` for Excel support
-- **Data Exchange Conversions**: May require `pyyaml`, `toml`, `dicttoxml`, or `xmltodict`
+- **Spreadsheet Conversions**: Require `pandas` and optional `openpyxl` for Excel support, `tabulate` for table formatting
+- **Data Exchange Conversions**: May require `pyyaml`, `toml`, `tomli`/`tomli_w`, `dicttoxml`, or `xmltodict`
 - **Image Conversions**: Require `Pillow` and optional format-specific libraries
 
 See the [installation documentation](installation.md) for details on installing required dependencies.
