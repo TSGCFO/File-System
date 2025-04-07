@@ -7,9 +7,16 @@ name: FileConverter CI/CD Pipeline
 
 on:
   push:
-    branches: [ roo ]
+    branches: [ roo, claude-code ]
   pull_request:
     branches: [ main ]
+
+# Grant workflow permission to create issues and uploads
+permissions:
+  contents: read
+  issues: write
+  checks: write
+  pull-requests: write
 
 jobs:
   test:
@@ -630,41 +637,50 @@ EOF
         retention-days: 90
         
     - name: Create issue if tests are failing
+      if: ${{ !github.event.repository.private }} # Only run for public repos
       uses: actions/github-script@v6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
+        permissions:
+          issues: write # Explicitly set permission to create issues
         script: |
-          const fs = require('fs');
-          
-          // Read the analysis report
-          const reportContent = fs.readFileSync('analysis_report.md', 'utf8');
-          
-          // Check if there are failures
-          const hasFailures = !reportContent.includes('No test failures found across all environments');
-          
-          if (hasFailures) {
-            // Create an issue with the test results
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `⚠️ Test Failures: ${new Date().toISOString().split('T')[0]}`,
-              body: `# Test Failures Report
-              
+          try {
+            const fs = require('fs');
+            
+            // Read the analysis report
+            const reportContent = fs.readFileSync('analysis_report.md', 'utf8');
+            
+            // Check if there are failures
+            const hasFailures = !reportContent.includes('No test failures found across all environments');
+            
+            if (hasFailures) {
+              // Create an issue with the test results
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `⚠️ Test Failures: ${new Date().toISOString().split('T')[0]}`,
+                body: `# Test Failures Report
+                
 This issue was automatically created by the CI workflow because test failures were detected.
 
 ## Summary
-${reportContent}
+${reportContent.substring(0, 65000)} 
+<!-- Report truncated if too long -->
 
 ## Workflow Run
-[Link to workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-              
+[Link to workflow run](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+                
 Please investigate and fix these failures.`,
-              labels: ['bug', 'test-failure', 'automated-report']
-            });
-            
-            console.log(`Created issue #${issue.data.number}`);
-          } else {
-            console.log('All tests passing, no issue created.');
+                labels: ['bug', 'test-failure', 'automated-report']
+              });
+              
+              console.log(`Created issue #${issue.data.number}`);
+            } else {
+              console.log('All tests passing, no issue created.');
+            }
+          } catch (error) {
+            console.error('Error creating issue:', error.message);
+            // Even if issue creation fails, don't fail the workflow
           }
   
   # Job to merge passing changes from roo to main
