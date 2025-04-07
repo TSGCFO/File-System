@@ -153,28 +153,145 @@ jobs:
         echo "Installation result: $?" | tee -a test_logs/package_install.log
       continue-on-error: true
     
-    # Run unit tests with detailed logging
-    - name: Run unit tests
+    # Run unit tests with detailed reporting
+    - name: Run unit tests with detailed reporting
       shell: bash
       run: |
-        echo "=== RUNNING BASIC TESTS ===" > test_logs/unit_tests.log
+        echo "=== RUNNING TESTS WITH DETAILED REPORTING ===" > test_logs/unit_tests.log
+        
+        # Install pytest-html for enhanced reports
+        pip install pytest-html pytest-json-report pytest-metadata 2>&1 | tee -a test_logs/install.log
         
         echo "Available tests directories:" | tee -a test_logs/unit_tests.log
         ls -la tests/ 2>&1 | tee -a test_logs/unit_tests.log || dir tests/ 2>&1 | tee -a test_logs/unit_tests.log
         
-        # Run the core tests first which are more likely to succeed
-        echo "Running core tests first..." | tee -a test_logs/unit_tests.log
-        python -m pytest tests/test_core.py -v --tb=short --no-header --skip-expensive 2>&1 | tee -a test_logs/unit_tests.log || echo "Core tests completed with non-zero exit code"
+        # Create reports directory
+        mkdir -p test_reports
         
-        # Then run all tests with focus on collecting rather than running every test
-        echo "Running all discovered tests..." | tee -a test_logs/unit_tests.log
-        python -m pytest tests/ -v --tb=short --no-header --collect-only 2>&1 | tee -a test_logs/unit_tests.log
+        # Run the core tests first with detailed reporting
+        echo "Running core tests with detailed reporting..." | tee -a test_logs/unit_tests.log
+        python -m pytest tests/test_core.py -v --tb=long \
+          --no-header --skip-expensive \
+          --html=test_reports/core-tests-report.html \
+          --json-report --json-report-file=test_reports/core-tests-report.json \
+          --self-contained-html 2>&1 | tee -a test_logs/unit_tests.log || echo "Core tests completed with non-zero exit code"
         
-        # Run tests with reduced verbosity and fail fast to ensure some results
-        echo "Running tests with reduced settings..." | tee -a test_logs/unit_tests.log
-        python -m pytest tests/ -v --tb=short --maxfail=5 --skip-expensive 2>&1 | tee -a test_logs/unit_tests.log || echo "Tests completed with non-zero exit code"
+        # Generate a summary of test modules for better coverage visibility
+        echo "Generating test modules summary..." | tee -a test_logs/unit_tests.log
+        python -m pytest tests/ --collect-only -q > test_reports/test-modules-summary.txt 2>&1 || echo "Test collection completed with non-zero exit code"
         
-        echo "Test execution complete with status: $?" | tee -a test_logs/unit_tests.log
+        # Run all tests with comprehensive reporting
+        echo "Running all tests with comprehensive reporting..." | tee -a test_logs/unit_tests.log
+        python -m pytest tests/ -v \
+          --tb=native \
+          --maxfail=10 \
+          --skip-expensive \
+          --html=test_reports/all-tests-report.html \
+          --json-report --json-report-file=test_reports/all-tests-report.json \
+          --self-contained-html \
+          -v 2>&1 | tee -a test_logs/unit_tests.log || echo "Tests completed with non-zero exit code"
+        
+        # Generate a test execution summary with categorized failures
+        echo "Generating categorized test summary..." | tee -a test_logs/unit_tests.log
+        
+        # Create a summary from the JSON report using Python
+        cat > test_reports/generate_summary.py << 'EOF'
+import json
+import os
+from datetime import datetime
+
+def main():
+    try:
+        # Load the JSON report
+        json_file = 'test_reports/all-tests-report.json'
+        if not os.path.exists(json_file):
+            json_file = 'test_reports/core-tests-report.json'
+            if not os.path.exists(json_file):
+                print("No test report JSON files found.")
+                return
+        
+        with open(json_file, 'r') as f:
+            report = json.load(f)
+        
+        # Create a human-readable summary
+        with open('test_reports/test-summary.md', 'w') as f:
+            f.write(f"# Test Execution Summary\n\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
+            # Overall statistics
+            f.write("## Overall Statistics\n\n")
+            f.write(f"- Total tests: {report['summary']['total']}\n")
+            f.write(f"- Passed: {report['summary']['passed']} ✅\n")
+            f.write(f"- Failed: {report['summary']['failed']} ❌\n")
+            f.write(f"- Skipped: {report['summary']['skipped']} ⏭️\n")
+            f.write(f"- Errors: {report['summary']['errors']} ⚠️\n")
+            f.write(f"- Duration: {report['duration']:.2f} seconds\n\n")
+            
+            # Test environments
+            f.write("## Test Environment\n\n")
+            if 'environment' in report:
+                for key, value in report['environment'].items():
+                    f.write(f"- {key}: {value}\n")
+            f.write("\n")
+            
+            # Categorize failures by module
+            failed_tests_by_module = {}
+            if 'tests' in report:
+                for test in report['tests']:
+                    if test.get('outcome') == 'failed':
+                        module_name = test.get('nodeid').split('::')[0]
+                        if module_name not in failed_tests_by_module:
+                            failed_tests_by_module[module_name] = []
+                        failed_tests_by_module[module_name].append(test)
+            
+            if failed_tests_by_module:
+                f.write("## Failures by Module\n\n")
+                for module, tests in failed_tests_by_module.items():
+                    f.write(f"### {module}\n\n")
+                    for test in tests:
+                        test_name = test.get('nodeid').split('::')[-1]
+                        f.write(f"- ❌ {test_name}\n")
+                        if 'call' in test.get('call', {}):
+                            crash_message = test.get('call', {}).get('crash', {}).get('message', 'No message available')
+                            f.write(f"  - Error: `{crash_message}`\n")
+                    f.write("\n")
+            
+            # Slow tests (top 5)
+            if 'tests' in report:
+                slow_tests = sorted([t for t in report['tests'] if t.get('outcome') == 'passed'], 
+                                  key=lambda x: x.get('duration', 0), reverse=True)[:5]
+                
+                if slow_tests:
+                    f.write("## Slowest Tests\n\n")
+                    for i, test in enumerate(slow_tests, 1):
+                        test_id = test.get('nodeid', 'Unknown')
+                        duration = test.get('duration', 0)
+                        f.write(f"{i}. `{test_id}` - {duration:.2f} seconds\n")
+                    f.write("\n")
+            
+            # Next steps
+            f.write("## Recommendations\n\n")
+            if report['summary']['failed'] > 0 or report['summary']['errors'] > 0:
+                f.write("1. Focus on fixing failing tests, starting with high-priority modules\n")
+                f.write("2. Check for import errors or missing dependencies\n")
+                f.write("3. Verify that test data files are available\n")
+            else:
+                f.write("✅ All tests are passing! Consider adding more test coverage.\n")
+    
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        with open('test_reports/test-summary.md', 'w') as f:
+            f.write(f"# Error Generating Test Summary\n\n")
+            f.write(f"An error occurred while generating the test summary: {str(e)}\n")
+
+if __name__ == "__main__":
+    main()
+EOF
+        
+        # Run the summary generator
+        python test_reports/generate_summary.py
+        
+        echo "Test execution complete with detailed reports in test_reports/" | tee -a test_logs/unit_tests.log
       continue-on-error: true
       
     # Run simple script tests
@@ -196,6 +313,16 @@ jobs:
         echo "Test script execution complete with status: $?" | tee -a test_logs/test_script.log
       continue-on-error: true
     
+    # Upload the test reports as artifacts
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: test_reports/
+        retention-days: 90  # Keep reports for 90 days
+      continue-on-error: true
+      
     # Generate a comprehensive summary
     - name: Generate test summary
       shell: bash
@@ -206,8 +333,21 @@ jobs:
         echo "Python version: ${{ matrix.python-version }}" >> test_logs/summary.log
         echo "" >> test_logs/summary.log
         
-        echo "=== LOGS COLLECTED ===" >> test_logs/summary.log
+        # Include generated summary if available
+        if [ -f test_reports/test-summary.md ]; then
+          echo "Detailed test summary available in the 'test-reports' artifact." >> test_logs/summary.log
+          echo "" >> test_logs/summary.log
+          echo "=== SUMMARY PREVIEW ===" >> test_logs/summary.log
+          head -n 20 test_reports/test-summary.md >> test_logs/summary.log
+        fi
+        
+        echo "" >> test_logs/summary.log
+        echo "=== LOGS AND REPORTS COLLECTED ===" >> test_logs/summary.log
+        echo "Log files:" >> test_logs/summary.log
         ls -la test_logs/ >> test_logs/summary.log 2>&1 || dir test_logs/ >> test_logs/summary.log 2>&1
+        echo "" >> test_logs/summary.log
+        echo "Report files:" >> test_logs/summary.log
+        ls -la test_reports/ >> test_logs/summary.log 2>&1 || dir test_reports/ >> test_logs/summary.log 2>&1
         
         # Count test results if possible
         echo "" >> test_logs/summary.log
@@ -221,6 +361,9 @@ jobs:
         echo "" >> test_logs/summary.log
         echo "=== ERROR SUMMARY ===" >> test_logs/summary.log
         grep -E "Error|Exception|Traceback" test_logs/*.log >> test_logs/summary.log 2>/dev/null || echo "No errors found in logs" >> test_logs/summary.log
+        
+        # Create a merged report summary for easier access
+        cp test_reports/test-summary.md test_logs/test-summary.md 2>/dev/null || echo "No test summary found to copy" >> test_logs/summary.log
       continue-on-error: true
     
     # Upload all test logs as artifacts
@@ -250,9 +393,9 @@ jobs:
           cat test_logs/summary.log
         fi
       
-  # Job to analyze test results
-  analyze_logs:
-    name: Analyze Test Logs
+  # Job to analyze test results and create a comprehensive report
+  analyze_test_results:
+    name: Analyze Test Results
     needs: test
     runs-on: ubuntu-latest
     if: always()  # Run even if tests fail
@@ -261,73 +404,273 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
-        path: all_test_logs
+        path: all_artifacts
     
-    - name: Generate combined report
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install reporting requirements
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas matplotlib jinja2 markdown tabulate
+    
+    - name: Generate comprehensive analysis report
       shell: bash
       run: |
-        echo "=== COMBINED TEST RESULTS ANALYSIS ===" > combined_report.md
-        echo "Generated: $(date)" >> combined_report.md
-        echo "" >> combined_report.md
+        # First create a standard markdown report
+        echo "# 📊 FileConverter Test Results Analysis" > analysis_report.md
+        echo "" >> analysis_report.md
+        echo "Generated: $(date)" >> analysis_report.md
+        echo "" >> analysis_report.md
         
-        echo "## Test Environments" >> combined_report.md
-        echo "" >> combined_report.md
-        echo "| OS | Python Version | Status |" >> combined_report.md
-        echo "|----|--------------------|--------|" >> combined_report.md
+        # Environment summary table
+        echo "## 🖥️ Test Environments" >> analysis_report.md
+        echo "" >> analysis_report.md
+        echo "| OS | Python Version | Status | Total Tests | Passed | Failed | Skipped |" >> analysis_report.md
+        echo "|----|--------------------|--------|------------|--------|--------|---------|" >> analysis_report.md
         
-        # Loop through all test logs
-        for env_dir in all_test_logs/test-logs-*; do
-          if [ -d "$env_dir" ]; then
+        # Check for report files
+        for test_report_dir in all_artifacts/test-reports-*; do
+          if [ -d "$test_report_dir" ]; then
             # Extract OS and Python version from directory name
-            dir_name=$(basename "$env_dir")
+            dir_name=$(basename "$test_report_dir")
             os_name=$(echo "$dir_name" | cut -d'-' -f3)
             py_ver=$(echo "$dir_name" | cut -d'-' -f5)
             
-            # Check if summary log exists
-            if [ -f "$env_dir/summary.log" ]; then
-              # Try to determine status
-              if grep -q "Error\|Exception\|Traceback" "$env_dir/summary.log"; then
-                status="⚠️ Issues Found"
+            # Check if summary file exists
+            if [ -f "$test_report_dir/test-summary.md" ]; then
+              # Extract stats from summary file
+              total=$(grep "Total tests:" "$test_report_dir/test-summary.md" | sed 's/.*: \([0-9]*\).*/\1/')
+              passed=$(grep "Passed:" "$test_report_dir/test-summary.md" | sed 's/.*: \([0-9]*\).*/\1/')
+              failed=$(grep "Failed:" "$test_report_dir/test-summary.md" | sed 's/.*: \([0-9]*\).*/\1/')
+              skipped=$(grep "Skipped:" "$test_report_dir/test-summary.md" | sed 's/.*: \([0-9]*\).*/\1/')
+              
+              # Determine status
+              if [ -z "$failed" ] || [ "$failed" -eq "0" ]; then
+                status="✅ Passed"
               else
-                status="✅ Completed"
+                status="❌ Failed"
               fi
+              
+              # For missing values, set defaults
+              total=${total:-"N/A"}
+              passed=${passed:-"N/A"}
+              failed=${failed:-"N/A"}
+              skipped=${skipped:-"N/A"}
+              
+              echo "| $os_name | $py_ver | $status | $total | $passed | $failed | $skipped |" >> analysis_report.md
             else
-              status="❓ No Summary"
+              # No summary file found
+              echo "| $os_name | $py_ver | ❓ Unknown | N/A | N/A | N/A | N/A |" >> analysis_report.md
             fi
-            
-            echo "| $os_name | $py_ver | $status |" >> combined_report.md
           fi
         done
         
-        echo "" >> combined_report.md
-        echo "## Common Issues" >> combined_report.md
-        echo "" >> combined_report.md
+        # HTML Report Previews
+        echo "" >> analysis_report.md
+        echo "## 📝 Test Report Links" >> analysis_report.md
+        echo "" >> analysis_report.md
+        echo "All detailed test reports are available as workflow artifacts. Here are direct links to the most important reports:" >> analysis_report.md
+        echo "" >> analysis_report.md
         
-        # Look for common error patterns
-        echo "### Import Errors" >> combined_report.md
-        grep -r "ImportError\|ModuleNotFoundError" all_test_logs/ >> combined_report.md 2>/dev/null || echo "No import errors found" >> combined_report.md
+        # Create links to HTML reports
+        echo "| Environment | Report Type | Filename |" >> analysis_report.md
+        echo "|------------|-------------|----------|" >> analysis_report.md
         
-        echo "" >> combined_report.md
-        echo "### Assertion Failures" >> combined_report.md
-        grep -r "AssertionError" all_test_logs/ >> combined_report.md 2>/dev/null || echo "No assertion errors found" >> combined_report.md
+        for test_report_dir in all_artifacts/test-reports-*; do
+          if [ -d "$test_report_dir" ]; then
+            dir_name=$(basename "$test_report_dir")
+            reports=$(find "$test_report_dir" -name "*.html" -o -name "*.json" | sort)
+            
+            for report in $reports; do
+              report_name=$(basename "$report")
+              report_type=""
+              
+              if [[ "$report_name" == *"core-tests"* ]]; then
+                report_type="Core Tests"
+              elif [[ "$report_name" == *"all-tests"* ]]; then
+                report_type="All Tests"
+              else
+                report_type="Other"
+              fi
+              
+              echo "| $dir_name | $report_type | $report_name |" >> analysis_report.md
+            done
+          fi
+        done
         
-        echo "" >> combined_report.md
-        echo "## Next Steps" >> combined_report.md
-        echo "" >> combined_report.md
-        echo "1. Review complete logs in the artifacts for each environment" >> combined_report.md
-        echo "2. Address any common patterns in errors" >> combined_report.md
-        echo "3. Adjust workflow as needed based on findings" >> combined_report.md
+        # Combine all failures across environments
+        echo "" >> analysis_report.md
+        echo "## ❌ All Failures" >> analysis_report.md
+        echo "" >> analysis_report.md
+        
+        # Generate Python script to aggregate failures
+        cat > combine_failures.py << 'EOF'
+import os
+import json
+import pandas as pd
+from pathlib import Path
+import markdown
+from tabulate import tabulate
+
+def extract_failures_from_json(json_file):
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+            
+        failures = []
+        
+        if 'tests' in data:
+            for test in data['tests']:
+                if test.get('outcome') == 'failed':
+                    module_name = test.get('nodeid', '').split('::')[0]
+                    test_name = test.get('nodeid', '').split('::')[-1]
+                    crash_message = test.get('call', {}).get('crash', {}).get('message', 'No message available')
+                    
+                    # Simplify and clean error message
+                    if len(crash_message) > 200:
+                        crash_message = crash_message[:200] + "..."
+                    
+                    failures.append({
+                        'module': module_name,
+                        'test': test_name,
+                        'error': crash_message,
+                        'source': os.path.basename(json_file)
+                    })
+        
+        return failures
+    except Exception as e:
+        print(f"Error processing {json_file}: {e}")
+        return []
+
+def main():
+    # Gather all JSON report files
+    all_failures = []
     
-    - name: Upload combined report
+    for root, dirs, files in os.walk('all_artifacts'):
+        for file in files:
+            if file.endswith('.json') and 'report' in file:
+                json_path = os.path.join(root, file)
+                failures = extract_failures_from_json(json_path)
+                all_failures.extend(failures)
+    
+    # Create DataFrame for analysis
+    if all_failures:
+        df = pd.DataFrame(all_failures)
+        
+        # Group by module
+        modules = df['module'].unique()
+        
+        with open('failures.md', 'w') as f:
+            if len(all_failures) == 0:
+                f.write("✅ No test failures found across all environments!\n")
+            else:
+                f.write(f"Found {len(all_failures)} total failures across all environments.\n\n")
+                
+                # Group by module
+                f.write("### Failures by Module\n\n")
+                for module in sorted(modules):
+                    module_failures = df[df['module'] == module]
+                    f.write(f"#### {module}\n\n")
+                    
+                    # Create table
+                    module_table = module_failures[['test', 'error', 'source']].copy()
+                    module_table.columns = ['Test', 'Error', 'Source']
+                    
+                    # Convert to markdown table
+                    table_md = tabulate(module_table, headers='keys', tablefmt='pipe', showindex=False)
+                    f.write(table_md)
+                    f.write("\n\n")
+    else:
+        with open('failures.md', 'w') as f:
+            f.write("✅ No test failures found across all environments!\n")
+
+if __name__ == "__main__":
+    main()
+EOF
+        
+        # Run the failure analysis script
+        python combine_failures.py
+        
+        # Include the failures in the main report
+        if [ -f failures.md ]; then
+          cat failures.md >> analysis_report.md
+        fi
+        
+        # Add recommendations section
+        echo "" >> analysis_report.md
+        echo "## 🚀 Recommendations" >> analysis_report.md
+        echo "" >> analysis_report.md
+        
+        if grep -q "No test failures found" failures.md; then
+          echo "✅ All tests are passing! Consider:" >> analysis_report.md
+          echo "1. Adding more tests to increase coverage" >> analysis_report.md
+          echo "2. Optimizing slow tests" >> analysis_report.md
+          echo "3. Testing on additional Python versions" >> analysis_report.md
+        else
+          echo "Priority actions:" >> analysis_report.md
+          echo "1. Fix failing tests, prioritizing core functionality" >> analysis_report.md
+          echo "2. Check for import errors or missing dependencies" >> analysis_report.md
+          echo "3. Verify that test data files are available" >> analysis_report.md
+          echo "4. Look for common patterns in failures across environments" >> analysis_report.md
+        fi
+        
+        echo "" >> analysis_report.md
+        echo "## 📈 Test History" >> analysis_report.md
+        echo "" >> analysis_report.md
+        echo "This section will track test results over time once multiple workflow runs have been completed." >> analysis_report.md
+    
+    - name: Upload comprehensive analysis report
       uses: actions/upload-artifact@v4
       with:
         name: test-analysis-report
-        path: combined_report.md
+        path: analysis_report.md
+        retention-days: 90
+        
+    - name: Create issue if tests are failing
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          
+          // Read the analysis report
+          const reportContent = fs.readFileSync('analysis_report.md', 'utf8');
+          
+          // Check if there are failures
+          const hasFailures = !reportContent.includes('No test failures found across all environments');
+          
+          if (hasFailures) {
+            // Create an issue with the test results
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Test Failures: ${new Date().toISOString().split('T')[0]}`,
+              body: `# Test Failures Report
+              
+This issue was automatically created by the CI workflow because test failures were detected.
+
+## Summary
+${reportContent}
+
+## Workflow Run
+[Link to workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+              
+Please investigate and fix these failures.`,
+              labels: ['bug', 'test-failure', 'automated-report']
+            });
+            
+            console.log(`Created issue #${issue.data.number}`);
+          } else {
+            console.log('All tests passing, no issue created.');
+          }
   
   # Job to merge passing changes from roo to main
   merge-to-main:
     name: Merge to main branch
-    needs: [test, analyze_logs]
+    needs: [test, analyze_test_results]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/roo' && success()
     permissions:

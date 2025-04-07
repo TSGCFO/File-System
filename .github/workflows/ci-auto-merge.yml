@@ -35,17 +35,104 @@ jobs:
           # Install package with --no-deps if normal install fails
           pip install . || pip install . --no-deps
 
-      - name: Run tests with coverage
+      - name: Run tests with detailed reporting
         run: |
-          pip install pytest pytest-cov pytest-mock
+          # Install reporting tools
+          pip install pytest pytest-cov pytest-mock pytest-html pytest-json-report pytest-metadata
           
-          # Run core tests which are most likely to succeed
-          echo "Running core tests first..."
-          pytest tests/test_core.py -v --tb=short --maxfail=3 --skip-expensive
+          # Create reports directory
+          mkdir -p test_reports
           
-          # Run all tests with reduced settings
-          echo "Running all tests with coverage..."
-          pytest --tb=short --maxfail=5 --skip-expensive --cov=fileconverter --cov-report=xml --cov-report=term || true
+          # Run core tests first with detailed reporting
+          echo "Running core tests with reporting..."
+          pytest tests/test_core.py -v --tb=long \
+            --html=test_reports/core-tests-report.html \
+            --json-report --json-report-file=test_reports/core-tests-report.json \
+            --self-contained-html \
+            --skip-expensive
+          
+          # Run all tests with coverage and reporting
+          echo "Running all tests with coverage and reporting..."
+          pytest --tb=short --maxfail=5 --skip-expensive \
+            --cov=fileconverter --cov-report=xml --cov-report=term \
+            --html=test_reports/all-tests-report.html \
+            --json-report --json-report-file=test_reports/all-tests-report.json \
+            --self-contained-html || true
+            
+          # Generate summary report
+          cat > generate_summary.py << 'EOF'
+import json
+import os
+from datetime import datetime
+
+def main():
+    try:
+        # Load the JSON report
+        json_file = 'test_reports/all-tests-report.json'
+        if not os.path.exists(json_file):
+            json_file = 'test_reports/core-tests-report.json'
+            if not os.path.exists(json_file):
+                print("No test report JSON files found.")
+                return
+        
+        with open(json_file, 'r') as f:
+            report = json.load(f)
+        
+        # Create a human-readable summary
+        with open('test_reports/test-summary.md', 'w') as f:
+            f.write(f"# Test Execution Summary\n\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
+            # Overall statistics
+            f.write("## Overall Statistics\n\n")
+            f.write(f"- Total tests: {report['summary']['total']}\n")
+            f.write(f"- Passed: {report['summary']['passed']} ✅\n")
+            f.write(f"- Failed: {report['summary']['failed']} ❌\n")
+            f.write(f"- Skipped: {report['summary']['skipped']} ⏭️\n")
+            f.write(f"- Errors: {report['summary']['errors']} ⚠️\n")
+            f.write(f"- Duration: {report['duration']:.2f} seconds\n\n")
+            
+            # Categorize failures by module
+            failed_tests_by_module = {}
+            if 'tests' in report:
+                for test in report['tests']:
+                    if test.get('outcome') == 'failed':
+                        module_name = test.get('nodeid', '').split('::')[0]
+                        if module_name not in failed_tests_by_module:
+                            failed_tests_by_module[module_name] = []
+                        failed_tests_by_module[module_name].append(test)
+            
+            if failed_tests_by_module:
+                f.write("## Failures by Module\n\n")
+                for module, tests in failed_tests_by_module.items():
+                    f.write(f"### {module}\n\n")
+                    for test in tests:
+                        test_name = test.get('nodeid', '').split('::')[-1]
+                        f.write(f"- ❌ {test_name}\n")
+                        if 'call' in test.get('call', {}):
+                            crash_message = test.get('call', {}).get('crash', {}).get('message', 'No message available')
+                            f.write(f"  - Error: `{crash_message}`\n")
+                    f.write("\n")
+    
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+
+if __name__ == "__main__":
+    main()
+EOF
+          
+          # Run the summary generator
+          python generate_summary.py
+          
+          echo "Test execution complete with detailed reports in test_reports/"
+      
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: test_reports/
+          retention-days: 90
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
