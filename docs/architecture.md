@@ -232,7 +232,7 @@ The typical data flow during a conversion operation:
 8. ConversionEngine cleans up temporary files (unless preservation is requested)
 9. Result is returned to the user
 
-### Cross-Format Conversion Path
+### Cross-Format and Cross-Domain Conversion Paths
 
 The cross-format conversion capability is a key feature that enables automatic multi-step conversions:
 
@@ -270,6 +270,52 @@ def find_conversion_path(input_format, output_format):
 ```
 
 This capability makes the system much more flexible, as it can handle conversions between formats that don't have direct converters, as long as a valid path exists through intermediate formats.
+
+### Cross-Domain Conversion Architecture
+
+FileConverter now supports advanced cross-domain conversions, where files can be converted between different categories (domains) of formats:
+
+1. **Document Domain**: DOCX, PDF, HTML, MD, etc.
+2. **Data Exchange Domain**: JSON, XML, YAML, etc.
+3. **Spreadsheet Domain**: XLSX, CSV, TSV, etc.
+
+The cross-domain architecture has these key components:
+
+1. **Domain Bridges**: Each converter can implement methods to handle cross-domain conversions:
+   - `_convert_to_data_format()` in DocumentConverter transforms documents to data formats
+   - `_convert_to_document_format()` in DataExchangeConverter transforms data to documents
+   - Similar methods exist for other domain pairs
+
+2. **Structural Mapping**: The system intelligently maps between domain concepts:
+   - Document structures (headings, paragraphs, tables) → Data structures (objects, arrays)
+   - Data structures (JSON objects, arrays) → Document elements (sections, tables)
+   - Spreadsheet data (rows, columns) → Data structures and vice versa
+
+3. **Conversion Flow**:
+   ```
+   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+   │  Document   │◄────►│     Data    │◄────►│ Spreadsheet │
+   │   Domain    │      │   Domain    │      │   Domain    │
+   └─────────────┘      └─────────────┘      └─────────────┘
+        ▲  ▼                 ▲  ▼                ▲  ▼
+        │  │                 │  │                │  │
+        │  │    ┌─────────────────────┐         │  │
+        └──┴────┤ Converter Registry  ├─────────┘  │
+               │  (path resolution)  │              │
+               └─────────────────────┘              │
+                         │                          │
+                         ▼                          │
+               ┌─────────────────────┐              │
+               │  Conversion Engine  │              │
+               │  (orchestration)    │◄─────────────┘
+               └─────────────────────┘
+   ```
+
+The benefits of this approach include:
+- **Flexibility**: Any format can be converted to any other format, regardless of domain
+- **Extensibility**: New domains can be added without modifying existing code
+- **Data Integration**: Enables seamless integration between different data representations
+- **Preservation**: Structural elements are preserved across domains when possible
 
 ## Design Patterns
 
@@ -428,3 +474,6 @@ Planned enhancements to the FileConverter architecture:
 5. **Preview System**: Preview capabilities for conversion results before finalization
 6. **Streaming API**: Support for streaming conversions to handle very large files
 7. **Containerization**: Docker images for easy deployment in various environments
+8. **Enhanced Cross-Domain Intelligence**: More advanced semantic mapping between different domains
+9. **Domain-Specific Optimization**: Specialized conversion paths for common cross-domain scenarios
+10. **Machine Learning Integration**: Using ML to improve conversion quality in complex cases

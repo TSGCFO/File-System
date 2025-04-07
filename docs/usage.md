@@ -276,6 +276,73 @@ The system automatically:
 
 This feature works transparently in both the GUI and command-line interfaces without requiring any special syntax.
 
+### Cross-Domain Conversion
+
+FileConverter now supports enhanced cross-domain conversions between document, spreadsheet, and data exchange formats. This powerful feature allows you to seamlessly convert between different domains:
+
+#### Document to Data Exchange Examples:
+
+```bash
+# Convert a Word document to JSON
+fileconverter convert report.docx data.json
+
+# Convert a Markdown file to YAML
+fileconverter convert documentation.md config.yaml
+
+# Convert HTML to XML
+fileconverter convert webpage.html data.xml
+
+# Convert a PDF to JSON with extraction parameters
+fileconverter convert financial-report.pdf financial-data.json --params "structure=table" --params "extract_tables=true"
+```
+
+#### Data Exchange to Document Examples:
+
+```bash
+# Convert JSON to a formatted PDF
+fileconverter convert api-response.json report.pdf --params "template=report-template.html"
+
+# Convert YAML to Markdown
+fileconverter convert configuration.yaml documentation.md
+
+# Convert XML to DOCX with styling
+fileconverter convert data-feed.xml report.docx --params "style=Corporate"
+
+# Convert structured data to HTML with custom CSS
+fileconverter convert product-data.json product-catalog.html --params "css=catalog-style.css"
+```
+
+#### Spreadsheet to Document Examples:
+
+```bash
+# Convert Excel spreadsheet to PDF with specific layout
+fileconverter convert financial-data.xlsx financial-report.pdf --params "orientation=landscape" --params "page_size=A3"
+
+# Convert CSV to HTML report
+fileconverter convert monthly-sales.csv sales-report.html --params "template=sales-template.html"
+```
+
+#### Document to Spreadsheet Examples:
+
+```bash
+# Extract tables from PDF to Excel
+fileconverter convert annual-report.pdf financial-data.xlsx --params "extract_tables=true"
+
+# Convert structured Markdown to CSV
+fileconverter convert product-list.md products.csv
+```
+
+#### Use Cases for Cross-Domain Conversion:
+
+1. **Data Extraction**: Extract structured data from documents for analysis or processing
+2. **Report Generation**: Convert data files (JSON, XML, CSV) into formatted documents for presentation
+3. **Content Migration**: Move content between different systems that require different formats
+4. **API Integration**: Process API responses (JSON/XML) into human-readable documents
+5. **Document Archiving**: Convert documents to structured data formats for long-term storage
+6. **Content Transformation**: Transform content for different audiences and consumption methods
+
+The system intelligently maps content between domains, preserving structure and formatting where appropriate. For document-to-data conversions, tables, lists, and structured content are mapped to appropriate data structures. For data-to-document conversions, JSON objects and arrays are represented as formatted sections, tables, or lists.
+
 ### Managing Conversion History
 
 The GUI keeps track of your recent conversions:
@@ -317,7 +384,7 @@ Customize the GUI behavior through the Settings dialog:
 For complex conversions that require multiple steps, you can define custom conversion pipelines:
 
 ```bash
-# Using a pipeline configuration file
+# Using a pipeline configuration file to convert from Markdown to PDF via HTML with custom styling
 fileconverter pipeline --config pipeline.yaml input.docx output.pdf
 ```
 
@@ -333,7 +400,7 @@ stages:
       orientation: landscape
 ```
 
-This pipeline first converts the input file to HTML with a custom CSS file, then converts the HTML to PDF with specific margin and orientation settings.
+This pipeline first converts the input file to HTML with a custom CSS file, then converts the HTML to PDF with specific margin and orientation settings. This approach is particularly useful for complex cross-domain conversions that benefit from customization at each step.
 
 You can also create pipelines programmatically:
 

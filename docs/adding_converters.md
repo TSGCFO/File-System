@@ -666,6 +666,170 @@ Common issues when developing new converters:
 
 ## Advanced Topics
 
+### Cross-Domain Conversions
+
+FileConverter supports conversions not only within a single domain (like document-to-document or image-to-image) but also across different domains (like document-to-data or spreadsheet-to-document). Understanding how to implement these cross-domain conversions is important for creating powerful converters.
+
+#### Implementing Cross-Domain Conversions
+
+To implement a cross-domain converter:
+
+1. **Declare supported cross-domain formats** in `get_input_formats()` and `get_output_formats()`:
+
+```python
+@classmethod
+def get_input_formats(cls) -> List[str]:
+    # Include formats from another domain
+    return ["docx", "pdf", "txt", "html", "md"]
+
+@classmethod
+def get_output_formats(cls) -> List[str]:
+    # Support conversion to data formats
+    return ["json", "xml", "yaml", "csv", "xlsx"]
+```
+
+2. **Implement specific methods** for cross-domain conversions:
+
+```python
+def _convert_to_data_format(
+    self,
+    input_path: Path,
+    output_path: Path,
+    input_format: str,
+    output_format: str,
+    temp_dir: Path,
+    parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Convert a document format to a data exchange format.
+    
+    This method handles the extraction and transformation of content
+    from document formats to structured data formats.
+    """
+    # Implementation logic here
+    # ...
+```
+
+3. **Include conditional checks** in your main `convert()` method:
+
+```python
+def convert(self, input_path, output_path, temp_dir, parameters):
+    # ...
+    
+    # Handle cross-domain conversions
+    if input_format in ["docx", "pdf", "html"] and output_format in ["json", "xml", "yaml"]:
+        result = self._convert_to_data_format(
+            input_path, output_path, input_format, output_format, temp_dir, parameters
+        )
+    # ...
+```
+
+#### Example: DocumentConverter to Data Exchange Formats
+
+Here's a simplified example showing how document formats are converted to data exchange formats:
+
+```python
+def _convert_to_data_format(
+    self,
+    input_path: Path,
+    output_path: Path,
+    input_format: str,
+    output_format: str,
+    temp_dir: Path,
+    parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Convert a document format to a data exchange format."""
+    
+    # Extract structured content from the document
+    document_data = self._extract_document_structure(input_path, input_format)
+    
+    # Transform to the target data format
+    if output_format == "json":
+        self._save_as_json(document_data, output_path, parameters)
+    elif output_format == "xml":
+        self._save_as_xml(document_data, output_path, parameters)
+    elif output_format == "yaml":
+        self._save_as_yaml(document_data, output_path, parameters)
+    # ... other format handlers
+    
+    return {
+        "input_format": input_format,
+        "output_format": output_format,
+        "input_path": str(input_path),
+        "output_path": str(output_path),
+    }
+
+def _extract_document_structure(self, input_path: Path, format: str) -> Dict[str, Any]:
+    """Extract structured data from a document.
+    
+    This method analyzes a document and creates a structured representation
+    that can be converted to various data formats.
+    """
+    structured_data = {
+        "metadata": {},
+        "content": [],
+        "tables": []
+    }
+    
+    # Logic to extract document structure varies by format
+    if format == "docx":
+        # Extract from DOCX using python-docx
+        # ...
+    elif format == "pdf":
+        # Extract from PDF using PyPDF or related library
+        # ...
+    # ... other format handlers
+    
+    return structured_data
+```
+
+#### Coordinating Between Converter Classes
+
+For more complex cross-domain conversions, you may need to coordinate between different converter classes:
+
+1. **Import other converter classes** when needed:
+```python
+from fileconverter.converters.document import DocumentConverter
+from fileconverter.converters.spreadsheet import SpreadsheetConverter
+```
+
+2. **Share common utility methods** in a separate module to avoid code duplication
+
+3. **Use the registry to find other converters**:
+```python
+from fileconverter.core.registry import get_converter_registry
+
+def convert(self, input_path, output_path, temp_dir, parameters):
+    # ...
+    
+    # For complex conversions requiring another converter type
+    if input_format == "pdf" and output_format == "xlsx":
+        # First convert to an intermediate format both converters understand
+        csv_path = temp_dir / f"{input_path.stem}.csv"
+        
+        # Use DocumentConverter to convert PDF to CSV
+        registry = get_converter_registry()
+        doc_converter = registry.get_converter("pdf", "csv")
+        if doc_converter:
+            doc_converter.convert(input_path, csv_path, temp_dir, parameters)
+            
+            # Then use SpreadsheetConverter to convert CSV to XLSX
+            spreadsheet_converter = registry.get_converter("csv", "xlsx")
+            if spreadsheet_converter:
+                result = spreadsheet_converter.convert(
+                    csv_path, output_path, temp_dir, parameters
+                )
+                return result
+    # ...
+```
+
+#### Best Practices for Cross-Domain Conversions
+
+1. **Structure Preservation**: Maintain as much structure and formatting as reasonably possible
+2. **Semantic Mapping**: Map document elements to appropriate data structures (headings to keys, tables to arrays, etc.)
+3. **Fallback Options**: Provide simpler conversions when complex structures can't be fully preserved
+4. **Test Both Ways**: For bidirectional converters, ensure round-trip conversions produce reasonable results
+5. **Document Limitations**: Clearly document what aspects of formatting or structure are preserved or lost
+
 ### Multi-Stage Conversions
 
 For complex conversions requiring multiple steps:

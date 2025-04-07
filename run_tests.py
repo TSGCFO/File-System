@@ -75,12 +75,18 @@ def run_integration_tests():
     print_header("Running Integration Tests")
     
     # Run the installation test script
-    success, _ = run_command(
+    success1, _ = run_command(
         "python tests/run_installation_test.py",
         "Running installation test script"
     )
     
-    return success
+    # Run the dependency management integration tests
+    success2, _ = run_command(
+        "python tests/test_dependency_management_integration.py",
+        "Running dependency management integration tests"
+    )
+    
+    return success1 and success2
 
 
 def install_development_mode():

@@ -498,8 +498,64 @@ Please follow these guidelines when contributing:
 
 The project follows a code review process where maintainers will review your contribution before merging. Be responsive to feedback and be prepared to make adjustments if needed.
 
+### CI/CD Pipeline
+
+FileConverter uses GitHub Actions for continuous integration and deployment. The pipeline provides comprehensive testing and automatic deployments.
+
+#### How the Workflow Works
+
+1. **Trigger**: The workflow runs when:
+   - Code is pushed to the `roo` branch
+   - A pull request is created targeting the `main` branch
+
+2. **Test Execution Process**:
+   - Tests run in parallel across all configured platforms and Python versions
+   - Each test phase provides feedback but continues even if issues are found
+   - Results and logs are saved as artifacts for later review
+   - A test summary is generated for quick overview of results
+
+3. **Test Requirements**:
+   - **Cross-Platform**: Tests run on Windows, macOS, and Ubuntu
+   - **Multiple Python Versions**: Tests run on Python 3.8, 3.9, and 3.10
+   - **Resilient Testing**: Tests continue executing even if failures occur
+
+#### Test Suite Components
+
+- **Phase 1: Basic Unit Tests**
+  - Runs all unit tests focusing on core functionality
+  - Uses appropriate shell for each operating system (bash or PowerShell)
+  - Continues workflow regardless of test outcome
+
+- **Phase 2: Cross-Platform Integration Tests**
+  - Executes the comprehensive test suite with `run_tests.py`
+  - Tests core functionality across all platforms
+  - Generates detailed logs of test execution
+
+- **Phase 3: Installation Testing**
+  - Validates the package installation process
+  - Tests entry points, shortcut creation, and executable generation
+  - Ensures environment variables and paths are correctly set
+
+- **Phase 4: Dependency Management Testing**
+  - Tests the dependency detection and installation system
+  - Validates offline installation capabilities
+  - Checks platform-specific dependency handling
+
+#### Artifacts and Logs
+
+- Detailed logs are generated for each test phase
+- Test logs and execution results are saved as artifacts
+- Artifacts are attached to each workflow run for easy access and debugging
+
+#### Automatic Deployment
+
+- If all tests pass on the `roo` branch, changes are automatically merged to `main`
+- Merge commits include [CI] tag for easy identification
+- The `main` branch always contains stable, validated code
+- All tests are run with resilient error handling to avoid workflow failures
+- Tests are currently in progressive implementation mode, becoming stricter over time
+
 For more detailed information, see [CONTRIBUTING.md](CONTRIBUTING.md).
-For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 

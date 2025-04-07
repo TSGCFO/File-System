@@ -476,12 +476,9 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_batch_clicked(self):
         """Handle batch convert button click."""
-        QMessageBox.information(
-            self,
-            "Batch Conversion",
-            "Batch conversion is not yet implemented in the GUI. "
-            "Please use the command-line interface for batch operations."
-        )
+        from fileconverter.gui.batch_conversion_dialog import BatchConversionDialog
+        dialog = BatchConversionDialog(self.engine, self.registry, parent=self)
+        dialog.exec()
     
     @pyqtSlot()
     def on_settings_clicked(self):
