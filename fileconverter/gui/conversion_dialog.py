@@ -31,8 +31,18 @@ from fileconverter.core.registry import ConverterRegistry
 from fileconverter.utils.error_handling import ConversionError, format_error_for_user
 from fileconverter.utils.file_utils import get_file_extension, get_file_format
 from fileconverter.utils.logging_utils import get_logger
+from logging import Handler, LogRecord
 
 logger = get_logger(__name__)
+
+class GuiLogHandler(Handler):
+    def __init__(self, dialog):
+        super().__init__()
+        self.dialog = dialog
+
+    def emit(self, record: LogRecord):
+        msg = self.format(record)
+        self.dialog.append_log(msg)
 
 
 class ConversionThread(QThread):
@@ -121,6 +131,14 @@ class ConversionDialog(QDialog):
         
         # Setup UI
         self.setup_ui()
+
+        # Hook up logging
+        self._attach_log_handler()
+
+    def _attach_log_handler(self):
+        self.log_handler = GuiLogHandler(self)
+        self.log_handler.setLevel("INFO")
+        logger.addHandler(self.log_handler)
     
     def setup_ui(self):
         """Set up the user interface."""
@@ -196,6 +214,21 @@ class ConversionDialog(QDialog):
         self.progress_bar.setRange(0, 0)  # Indeterminate progress
         self.progress_bar.hide()
         layout.addWidget(self.progress_bar)
+
+        # Log toggle and viewer
+        self.log_toggle_btn = QPushButton("Show Logs ▼")
+        self.log_toggle_btn.setCheckable(True)
+        self.log_toggle_btn.setChecked(False)
+        self.log_toggle_btn.clicked.connect(self.toggle_log_view)
+        layout.addWidget(self.log_toggle_btn)
+
+        self.log_viewer = QLineEdit()
+        self.log_viewer = QDialogButtonBox()
+        from PyQt6.QtWidgets import QTextEdit
+        self.log_output = QTextEdit()
+        self.log_output.setReadOnly(True)
+        self.log_output.setVisible(False)
+        layout.addWidget(self.log_output)
         
         # Buttons
         button_box = QDialogButtonBox(
@@ -487,6 +520,18 @@ class ConversionDialog(QDialog):
         self.conversion_thread.conversion_complete.connect(self.on_conversion_complete)
         self.conversion_thread.start()
     
+    def append_log(self, message: str):
+        self.log_output.append(message)
+        self.log_output.verticalScrollBar().setValue(self.log_output.verticalScrollBar().maximum())
+
+    def toggle_log_view(self):
+        if self.log_output.isVisible():
+            self.log_output.hide()
+            self.log_toggle_btn.setText("Show Logs ▼")
+        else:
+            self.log_output.show()
+            self.log_toggle_btn.setText("Hide Logs ▲")
+
     @pyqtSlot(bool, dict)
     def on_conversion_complete(self, success: bool, result: Dict[str, Any]):
         """Handle conversion completion.
